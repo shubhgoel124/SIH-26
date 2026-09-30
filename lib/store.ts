@@ -241,10 +241,19 @@ function seedDb(): Database {
     },
     {
       id: pendingId,
-      name: "Pending Trainer",
+      name: "Karan Singh",
       email: "pending.trainer@sangam.dev",
       password: "password",
       role: "TRAINER",
+      approvalStatus: "PENDING",
+      createdAt: now(),
+    },
+    {
+      id: cuid(),
+      name: "Meera Iyer",
+      email: "pending.admin@sangam.dev",
+      password: "password",
+      role: "ADMIN",
       approvalStatus: "PENDING",
       createdAt: now(),
     }
@@ -267,17 +276,26 @@ function seedDb(): Database {
       subjectAreas: ["Cybersecurity", "Data Protection"],
       yearsExperience: 6,
       updatedAt: now(),
+    },
+    {
+      id: cuid(),
+      userId: pendingId,
+      bio: "",
+      subjectAreas: [],
+      yearsExperience: 0,
+      phone: "",
+      updatedAt: now(),
     }
   )
 
   db.traineeProfiles.push({
     id: cuid(),
     userId: traineeId,
-    qualifications: "",
-    workExperience: "",
-    interests: [],
-    skills: [],
-    phone: "",
+    qualifications: "B.A. Public Administration, Diploma in Digital Literacy",
+    workExperience: "3 years as Section Officer, training coordination and reporting",
+    interests: ["Leadership", "Digital tools", "Public policy"],
+    skills: ["MS Office", "Communication", "Data entry"],
+    phone: "9123456780",
     certificateUrls: [],
     updatedAt: now(),
   })

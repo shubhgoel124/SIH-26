@@ -218,13 +218,16 @@ function AdminDashboard() {
             <EmptyBlock title="No pending users" description="New sign-ups awaiting approval will appear here." />
           ) : (
             pending.map((u) => (
-              <Card key={u.id} className="border-slate-200/80 shadow-sm">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 gap-4">
-                  <div>
-                    <CardTitle className="text-lg">{u.name}</CardTitle>
-                    <p className="text-sm text-slate-600">
-                      {u.email}
-                    </p>
+              <Card key={u.id} className="border-amber-200/80 bg-amber-50/30 shadow-sm">
+                <CardHeader className="flex flex-col gap-4 space-y-0 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <CardTitle className="text-lg">{u.name}</CardTitle>
+                      <Badge variant="outline" className="border-amber-300 bg-amber-100 text-amber-900">
+                        Pending approval
+                      </Badge>
+                    </div>
+                    <p className="mt-1 text-sm text-slate-600">{u.email}</p>
                     <Badge variant="outline" className="mt-2 border-sky-200 text-sky-800">
                       {u.role}
                     </Badge>
@@ -241,6 +244,7 @@ function AdminDashboard() {
                     <Button
                       size="sm"
                       variant="outline"
+                      className="border-red-200 text-red-700 hover:bg-red-50"
                       disabled={reviewingId === u.id}
                       onClick={() => reviewUser(u.id, "reject")}
                     >
