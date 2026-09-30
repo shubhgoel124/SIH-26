@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { cuid, mutateDb, readDb, type CourseStatus } from "@/lib/store"
 import { requireRole } from "@/lib/auth-helpers"
+import { badRequest, text } from "@/lib/validation"
 
 const VALID_STATUSES: CourseStatus[] = ["DRAFT", "ACTIVE", "COMPLETED", "ARCHIVED"]
 
@@ -35,16 +36,26 @@ export async function POST(req: NextRequest) {
   const authResult = await requireRole("trainer")
   if (!authResult.ok) return authResult.response
 
-  const { title, description, subjectTag, startDate, endDate, status } = await req.json()
+  const body = await req.json()
+  const title = text(body.title)
+  const description = text(body.description)
+  const subjectTag = text(body.subjectTag)
+  const startDate = text(body.startDate)
+  const endDate = text(body.endDate)
+  const status = body.status
 
-  if (!title || !description || !subjectTag || !startDate || !endDate) {
-    return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
-  }
+  if (!title) return badRequest("Course title is required")
+  if (!description) return badRequest("Course description is required")
+  if (!subjectTag) return badRequest("Subject tag is required")
+  if (!startDate || !endDate) return badRequest("Start and end dates are required")
 
   const parsedStart = new Date(startDate)
   const parsedEnd = new Date(endDate)
   if (Number.isNaN(parsedStart.getTime()) || Number.isNaN(parsedEnd.getTime())) {
-    return NextResponse.json({ error: "Invalid start or end date" }, { status: 400 })
+    return badRequest("Invalid start or end date")
+  }
+  if (parsedEnd < parsedStart) {
+    return badRequest("End date must be on or after the start date")
   }
 
   let courseStatus: CourseStatus = "DRAFT"

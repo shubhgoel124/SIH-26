@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { cuid, mutateDb, readDb } from "@/lib/store"
 import { requireRole } from "@/lib/auth-helpers"
+import { badRequest, csvList, isValidPhone, text } from "@/lib/validation"
 
 export async function GET() {
   const authResult = await requireRole("trainee")
@@ -17,14 +18,21 @@ export async function POST(req: NextRequest) {
   if (!authResult.ok) return authResult.response
 
   const body = await req.json()
-  const {
-    qualifications,
-    workExperience,
-    interests,
-    skills,
-    phone,
-    certificateUrls,
-  } = body
+  const qualifications = text(body.qualifications)
+  const workExperience = text(body.workExperience)
+  const phone = text(body.phone)
+  const interests = csvList(body.interests)
+  const skills = csvList(body.skills)
+  const certificateUrls = Array.isArray(body.certificateUrls)
+    ? body.certificateUrls.map((u: unknown) => text(u)).filter(Boolean)
+    : undefined
+
+  if (!qualifications) return badRequest("Qualifications are required")
+  if (!workExperience) return badRequest("Work experience is required")
+  if (interests.length === 0) return badRequest("Add at least one interest")
+  if (skills.length === 0) return badRequest("Add at least one skill")
+  if (!phone) return badRequest("Phone number is required")
+  if (!isValidPhone(phone)) return badRequest("Enter a valid phone number (10–15 digits)")
 
   const userId = authResult.session.user.id
 
@@ -36,12 +44,12 @@ export async function POST(req: NextRequest) {
       const created = {
         id: cuid(),
         userId,
-        qualifications: qualifications ?? undefined,
-        workExperience: workExperience ?? undefined,
-        interests: Array.isArray(interests) ? interests : [],
-        skills: Array.isArray(skills) ? skills : [],
-        phone: phone ?? undefined,
-        certificateUrls: Array.isArray(certificateUrls) ? certificateUrls : [],
+        qualifications,
+        workExperience,
+        interests,
+        skills,
+        phone,
+        certificateUrls: certificateUrls ?? [],
         updatedAt,
       }
       db.traineeProfiles.push(created)
@@ -49,14 +57,12 @@ export async function POST(req: NextRequest) {
     }
 
     const existing = db.traineeProfiles[idx]
-    if (qualifications !== undefined) existing.qualifications = qualifications
-    if (workExperience !== undefined) existing.workExperience = workExperience
-    if (interests !== undefined) existing.interests = Array.isArray(interests) ? interests : []
-    if (skills !== undefined) existing.skills = Array.isArray(skills) ? skills : []
-    if (phone !== undefined) existing.phone = phone
-    if (certificateUrls !== undefined) {
-      existing.certificateUrls = Array.isArray(certificateUrls) ? certificateUrls : []
-    }
+    existing.qualifications = qualifications
+    existing.workExperience = workExperience
+    existing.interests = interests
+    existing.skills = skills
+    existing.phone = phone
+    if (certificateUrls !== undefined) existing.certificateUrls = certificateUrls
     existing.updatedAt = updatedAt
     return { ...existing }
   })

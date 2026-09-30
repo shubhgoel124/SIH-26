@@ -15,6 +15,16 @@ const dmSans = DM_Sans({
 export const metadata: Metadata = {
   title: "SANGAM | Capacity Connect",
   description: "Capacity Connect portal for trainees, trainers, and administrators",
+  icons: {
+    icon: [{ url: "/sangam-mark.svg", type: "image/svg+xml" }],
+    apple: [{ url: "/sangam-logo.png" }],
+  },
+}
+
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
 }
 
 export default function RootLayout({

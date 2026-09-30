@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Bell, Loader2, Megaphone, Sparkles } from "lucide-react"
+import { SangamLogo } from "@/components/sangam/logo"
 
 type Announcement = {
   id: string
@@ -46,46 +47,59 @@ export default function HomePage() {
   }, [])
 
   return (
-    <div className="relative min-h-screen bg-slate-50 text-slate-900">
+    <div className="relative min-h-dvh overflow-x-hidden bg-slate-50 text-slate-900">
       <div
         className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(circle_at_top,_rgba(14,165,233,0.15),transparent_50%),radial-gradient(circle_at_20%_20%,rgba(59,130,246,0.1),transparent_40%),linear-gradient(180deg,rgba(226,241,255,0.7),transparent)]"
         aria-hidden="true"
       />
       <header className="border-b border-white/60 bg-white/70 backdrop-blur">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4">
-          <span className="text-2xl font-bold tracking-tight text-sky-700">SANGAM</span>
-          <div className="flex gap-2">
-            <Button asChild variant="outline" className="border-slate-200">
+        <div className="sangam-container flex flex-wrap items-center justify-between gap-3 py-3 sm:py-4">
+          <div className="min-w-0">
+            <span className="sm:hidden">
+              <SangamLogo size={32} />
+            </span>
+            <span className="hidden sm:inline-flex">
+              <SangamLogo size={40} subtitle="Capacity Connect" />
+            </span>
+          </div>
+          <div className="flex shrink-0 gap-2">
+            <Button asChild variant="outline" size="sm" className="border-slate-200 sm:h-10 sm:px-4 sm:text-sm">
               <Link href="/sign-in">Sign in</Link>
             </Button>
-            <Button asChild className="bg-sky-600 hover:bg-sky-700">
+            <Button asChild size="sm" className="bg-sky-600 hover:bg-sky-700 sm:h-10 sm:px-4 sm:text-sm">
               <Link href="/sign-up">Sign up</Link>
             </Button>
           </div>
         </div>
       </header>
 
-      <section className="mx-auto max-w-6xl px-4 py-16 text-center">
-        <p className="text-sm font-semibold uppercase tracking-widest text-sky-600">Capacity Connect</p>
-        <h1 className="mt-3 text-5xl font-bold tracking-tight text-slate-900 sm:text-6xl">SANGAM</h1>
-        <p className="mx-auto mt-4 max-w-2xl text-lg leading-relaxed text-slate-600">
+      <section className="sangam-container py-10 text-center sm:py-14 md:py-16">
+        <div className="mb-5 flex justify-center sm:mb-6">
+          <SangamLogo
+            variant="stacked"
+            size={56}
+            className="[&_p]:text-2xl sm:[&_svg]:h-[72px] sm:[&_svg]:w-[72px] sm:[&_p]:text-4xl"
+            subtitle="Capacity Connect"
+          />
+        </div>
+        <p className="mx-auto mt-2 max-w-2xl px-1 text-base leading-relaxed text-slate-600 sm:text-lg">
           Unified portal for capacity building: courses, assessments, certificates, and trainer-led programs for
           organisational learners.
         </p>
-        <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-          <Button asChild size="lg" className="bg-sky-600 hover:bg-sky-700">
+        <div className="mt-6 flex w-full flex-col items-stretch justify-center gap-3 px-1 sm:mt-8 sm:flex-row sm:items-center sm:px-0">
+          <Button asChild size="lg" className="w-full bg-sky-600 hover:bg-sky-700 sm:w-auto">
             <Link href="/sign-in">Sign in</Link>
           </Button>
-          <Button asChild size="lg" variant="outline" className="border-slate-200">
+          <Button asChild size="lg" variant="outline" className="w-full border-slate-200 sm:w-auto">
             <Link href="/sign-up">Sign up</Link>
           </Button>
         </div>
       </section>
 
-      <section className="mx-auto max-w-6xl px-4 pb-16">
-        <div className="mb-6 flex items-end justify-between gap-4">
-          <div>
-            <h2 className="text-xl font-semibold text-slate-900">Announcements</h2>
+      <section className="sangam-container pb-12 sm:pb-16">
+        <div className="mb-5 flex items-end justify-between gap-4 sm:mb-6">
+          <div className="min-w-0">
+            <h2 className="text-lg font-semibold text-slate-900 sm:text-xl">Announcements</h2>
             <p className="text-sm text-slate-500">Updates from your organisation administrators.</p>
           </div>
         </div>
@@ -99,17 +113,22 @@ export default function HomePage() {
             <CardContent className="py-10 text-center text-sm text-slate-500">No announcements yet.</CardContent>
           </Card>
         ) : (
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid grid-cols-1 gap-3 sm:gap-4 md:grid-cols-2">
             {announcements.map((item) => {
               const Icon = typeIcons[item.type] ?? Bell
               return (
                 <Card
                   key={item.id}
-                  className="border-slate-200/80 bg-white/90 shadow-sm transition-shadow hover:shadow-md"
+                  className="h-full border-slate-200/80 bg-white/90 shadow-sm transition-shadow hover:shadow-md"
                 >
-                  <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
-                    <CardTitle className="text-base font-semibold leading-snug text-slate-900">{item.title}</CardTitle>
-                    <Badge variant="outline" className={typeStyles[item.type] ?? typeStyles.NOTIFICATION}>
+                  <CardHeader className="flex flex-col gap-2 space-y-0 pb-2 sm:flex-row sm:items-start sm:justify-between">
+                    <CardTitle className="min-w-0 text-base font-semibold leading-snug text-slate-900">
+                      {item.title}
+                    </CardTitle>
+                    <Badge
+                      variant="outline"
+                      className={`w-fit shrink-0 ${typeStyles[item.type] ?? typeStyles.NOTIFICATION}`}
+                    >
                       <Icon className="mr-1 h-3 w-3" />
                       {typeLabels[item.type] ?? item.type}
                     </Badge>

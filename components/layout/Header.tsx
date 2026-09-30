@@ -140,16 +140,16 @@ export default function Header() {
             className="group flex shrink-0 items-center gap-3 rounded-full bg-white/80 px-3 py-2 shadow-sm transition hover:-translate-y-0.5 hover:shadow"
           >
             <Image
-              src="/Logo_Saksham.png"
-              alt="Saksham"
+              src="/sangam-logo.png"
+              alt="SANGAM"
               width={40}
               height={40}
               priority
-              className="rounded-full object-cover"
+              className="rounded-xl object-cover"
             />
             <div className="text-left">
-              <p className="text-lg font-semibold leading-tight text-slate-900">Saksham</p>
-              <p className="text-xs font-medium text-slate-500">National Internship & Placement Mission</p>
+              <p className="text-lg font-semibold leading-tight text-slate-900">SANGAM</p>
+              <p className="text-xs font-medium text-slate-500">Capacity Connect</p>
             </div>
           </Link>
 

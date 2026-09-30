@@ -6,6 +6,7 @@ import {
   type Role,
 } from "@/lib/store"
 import { NextRequest, NextResponse } from "next/server"
+import { badRequest, text } from "@/lib/validation"
 
 const roleMap: Record<string, Role> = {
   trainee: "TRAINEE",
@@ -15,15 +16,25 @@ const roleMap: Record<string, Role> = {
 
 export async function POST(req: NextRequest) {
   try {
-    const { email, name, password, role } = await req.json()
+    const payload = await req.json()
+    const email = text(payload.email).toLowerCase()
+    const name = text(payload.name)
+    const password = typeof payload.password === "string" ? payload.password : ""
+    const role = text(payload.role).toLowerCase()
 
-    if (!email || !name || !password || !role) {
-      return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
+    if (!name) return badRequest("Full name is required")
+    if (!email) return badRequest("Email is required")
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return badRequest("Enter a valid email address")
     }
+    if (!password || password.length < 6) {
+      return badRequest("Password must be at least 6 characters")
+    }
+    if (!role) return badRequest("Select a role")
 
-    const mappedRole = roleMap[String(role).toLowerCase()]
+    const mappedRole = roleMap[role]
     if (!mappedRole) {
-      return NextResponse.json({ error: "Invalid role" }, { status: 400 })
+      return badRequest("Invalid role")
     }
 
     const existing = findUserByEmail(email)

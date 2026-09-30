@@ -182,16 +182,42 @@ function TrainerDashboard() {
 
   const saveProfile = async (e: React.FormEvent) => {
     e.preventDefault()
+    const bio = (profile.bio ?? "").trim()
+    const phone = (profile.phone ?? "").trim()
+    const subjectAreas = splitCsv(subjectAreasInput)
+    const yearsExperience = Number(profile.yearsExperience ?? "")
+
+    if (!bio) {
+      toast.error("Bio is required")
+      return
+    }
+    if (subjectAreas.length === 0) {
+      toast.error("Add at least one subject area")
+      return
+    }
+    if (!Number.isFinite(yearsExperience) || yearsExperience < 0) {
+      toast.error("Years of experience must be 0 or more")
+      return
+    }
+    if (!phone) {
+      toast.error("Phone number is required")
+      return
+    }
+    if (!/^\d{10,15}$/.test(phone.replace(/[\s\-()+]/g, ""))) {
+      toast.error("Enter a valid phone number (10–15 digits)")
+      return
+    }
+
     setSaving(true)
     try {
       const res = await fetch("/api/trainer/profile", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          bio: profile.bio ?? "",
-          subjectAreas: splitCsv(subjectAreasInput),
-          yearsExperience: profile.yearsExperience ?? 0,
-          phone: profile.phone ?? "",
+          bio,
+          subjectAreas,
+          yearsExperience,
+          phone,
         }),
       })
       if (res.ok) toast.success("Profile saved")
@@ -206,12 +232,26 @@ function TrainerDashboard() {
 
   const createCourse = async (e: React.FormEvent) => {
     e.preventDefault()
+    const title = newCourse.title.trim()
+    const description = newCourse.description.trim()
+    const subjectTag = newCourse.subjectTag.trim()
+    if (!title || !description || !subjectTag || !newCourse.startDate || !newCourse.endDate) {
+      toast.error("Fill in every course field before creating")
+      return
+    }
     setCreatingCourse(true)
     try {
       const res = await fetch("/api/trainer/courses", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...newCourse, status: "ACTIVE" }),
+        body: JSON.stringify({
+          title,
+          description,
+          subjectTag,
+          startDate: newCourse.startDate,
+          endDate: newCourse.endDate,
+          status: "ACTIVE",
+        }),
       })
       if (res.ok) {
         toast.success("Course created")
@@ -230,8 +270,17 @@ function TrainerDashboard() {
     e.preventDefault()
     const fileInput = document.getElementById("trainer-material-file") as HTMLInputElement
     const file = fileInput?.files?.[0]
-    if (!file || !materialCourseId) {
-      toast.error("Select a course and file")
+    const title = materialTitle.trim()
+    if (!materialCourseId) {
+      toast.error("Select a course")
+      return
+    }
+    if (!title) {
+      toast.error("Material title is required")
+      return
+    }
+    if (!file) {
+      toast.error("Choose a file to upload")
       return
     }
     setUploading(true)
@@ -251,7 +300,7 @@ function TrainerDashboard() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           courseId: materialCourseId,
-          title: materialTitle,
+          title,
           type: materialType,
           fileUrl,
         }),
@@ -271,6 +320,33 @@ function TrainerDashboard() {
 
   const createQuestionnaire = async (e: React.FormEvent) => {
     e.preventDefault()
+    const title = questionnaireTitle.trim()
+    if (!questionnaireCourseId) {
+      toast.error("Select a course")
+      return
+    }
+    if (!title) {
+      toast.error("Questionnaire title is required")
+      return
+    }
+    if (!questionnaireDeadline) {
+      toast.error("Deadline is required")
+      return
+    }
+    for (const [i, mcq] of mcqs.entries()) {
+      if (!mcq.questionText.trim()) {
+        toast.error(`Question ${i + 1}: question text is required`)
+        return
+      }
+      if (mcq.options.some((o) => !o.trim())) {
+        toast.error(`Question ${i + 1}: fill in every option`)
+        return
+      }
+      if (!mcq.subjectTag.trim()) {
+        toast.error(`Question ${i + 1}: subject tag is required`)
+        return
+      }
+    }
     setCreatingQuestionnaire(true)
     try {
       const res = await fetch("/api/trainer/questionnaire", {
@@ -278,9 +354,14 @@ function TrainerDashboard() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           courseId: questionnaireCourseId,
-          title: questionnaireTitle,
+          title,
           deadline: questionnaireDeadline,
-          questions: mcqs,
+          questions: mcqs.map((q) => ({
+            questionText: q.questionText.trim(),
+            options: q.options.map((o) => o.trim()),
+            correctOption: q.correctOption,
+            subjectTag: q.subjectTag.trim(),
+          })),
         }),
       })
       if (res.ok) {
@@ -318,7 +399,7 @@ function TrainerDashboard() {
       </div>
 
       <Tabs defaultValue="profile" className="w-full">
-        <TabsList className="flex h-auto flex-wrap gap-1 bg-slate-100 p-1">
+        <TabsList className="flex h-auto w-full flex-wrap justify-start gap-1 overflow-x-auto bg-slate-100 p-1">
           <TabsTrigger value="profile">Profile</TabsTrigger>
           <TabsTrigger value="courses">My courses</TabsTrigger>
           <TabsTrigger value="library">Trainer library</TabsTrigger>
@@ -335,40 +416,55 @@ function TrainerDashboard() {
             <CardContent>
               <form className="grid gap-4" onSubmit={saveProfile}>
                 <div className="space-y-2">
-                  <Label htmlFor="bio">Bio</Label>
+                  <Label htmlFor="bio" required>
+                    Bio
+                  </Label>
                   <Textarea
                     id="bio"
                     value={profile.bio ?? ""}
                     onChange={(e) => setProfile({ ...profile, bio: e.target.value })}
+                    placeholder="e.g. Capacity building specialist with 8 years training civil servants in digital literacy and leadership"
                     rows={4}
+                    required
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="subjectAreas">Subject areas (comma-separated)</Label>
+                  <Label htmlFor="subjectAreas" required>
+                    Subject areas (comma-separated)
+                  </Label>
                   <Input
                     id="subjectAreas"
                     value={subjectAreasInput}
                     onChange={(e) => setSubjectAreasInput(e.target.value)}
-                    placeholder="Governance, finance, HR"
+                    placeholder="e.g. Digital Literacy, Leadership, Public Policy"
+                    required
                   />
                 </div>
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-2">
-                    <Label htmlFor="years">Years of experience</Label>
+                    <Label htmlFor="years" required>
+                      Years of experience
+                    </Label>
                     <Input
                       id="years"
                       type="number"
                       min={0}
                       value={profile.yearsExperience ?? ""}
                       onChange={(e) => setProfile({ ...profile, yearsExperience: Number(e.target.value) })}
+                      placeholder="e.g. 8"
+                      required
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="phone">Phone</Label>
+                    <Label htmlFor="phone" required>
+                      Phone
+                    </Label>
                     <Input
                       id="phone"
                       value={profile.phone ?? ""}
                       onChange={(e) => setProfile({ ...profile, phone: e.target.value })}
+                      placeholder="e.g. 9876543210"
+                      required
                     />
                   </div>
                 </div>
@@ -396,32 +492,35 @@ function TrainerDashboard() {
             <CardContent>
               <form className="grid gap-3 sm:grid-cols-2" onSubmit={createCourse}>
                 <div className="space-y-2 sm:col-span-2">
-                  <Label>Title</Label>
+                  <Label required>Title</Label>
                   <Input
                     value={newCourse.title}
                     onChange={(e) => setNewCourse({ ...newCourse, title: e.target.value })}
+                    placeholder="e.g. Digital Workplace Essentials"
                     required
                   />
                 </div>
                 <div className="space-y-2 sm:col-span-2">
-                  <Label>Description</Label>
+                  <Label required>Description</Label>
                   <Textarea
                     value={newCourse.description}
                     onChange={(e) => setNewCourse({ ...newCourse, description: e.target.value })}
+                    placeholder="e.g. Core digital skills for day-to-day organisational work: collaboration tools, file hygiene, and secure communication"
                     required
                     rows={3}
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>Subject tag</Label>
+                  <Label required>Subject tag</Label>
                   <Input
                     value={newCourse.subjectTag}
                     onChange={(e) => setNewCourse({ ...newCourse, subjectTag: e.target.value })}
+                    placeholder="e.g. Digital Literacy"
                     required
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>Start date</Label>
+                  <Label required>Start date</Label>
                   <Input
                     type="date"
                     value={newCourse.startDate}
@@ -430,7 +529,7 @@ function TrainerDashboard() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>End date</Label>
+                  <Label required>End date</Label>
                   <Input
                     type="date"
                     value={newCourse.endDate}
@@ -483,7 +582,7 @@ function TrainerDashboard() {
               ) : (
                 <form className="grid gap-3 sm:grid-cols-2" onSubmit={uploadMaterial}>
                   <div className="space-y-2">
-                    <Label>Course</Label>
+                    <Label required>Course</Label>
                     <Select value={materialCourseId} onValueChange={setMaterialCourseId}>
                       <SelectTrigger>
                         <SelectValue placeholder="Select course" />
@@ -498,7 +597,7 @@ function TrainerDashboard() {
                     </Select>
                   </div>
                   <div className="space-y-2">
-                    <Label>Material type</Label>
+                    <Label required>Material type</Label>
                     <Select value={materialType} onValueChange={setMaterialType}>
                       <SelectTrigger>
                         <SelectValue />
@@ -513,12 +612,18 @@ function TrainerDashboard() {
                     </Select>
                   </div>
                   <div className="space-y-2 sm:col-span-2">
-                    <Label>Title</Label>
-                    <Input value={materialTitle} onChange={(e) => setMaterialTitle(e.target.value)} required />
+                    <Label required>Title</Label>
+                    <Input
+                      value={materialTitle}
+                      onChange={(e) => setMaterialTitle(e.target.value)}
+                      placeholder="e.g. Week 1 kickoff presentation"
+                      required
+                    />
                   </div>
                   <div className="space-y-2 sm:col-span-2">
-                    <Label>File</Label>
+                    <Label required>File</Label>
                     <Input id="trainer-material-file" type="file" required />
+                    <p className="text-xs text-slate-500">Upload a PDF, presentation, or video under 5MB.</p>
                   </div>
                   <Button type="submit" className="bg-sky-600 hover:bg-sky-700 sm:col-span-2" disabled={uploading}>
                     {uploading ? (
@@ -578,7 +683,7 @@ function TrainerDashboard() {
                 <form className="space-y-4" onSubmit={createQuestionnaire}>
                   <div className="grid gap-3 sm:grid-cols-2">
                     <div className="space-y-2">
-                      <Label>Course</Label>
+                      <Label required>Course</Label>
                       <Select value={questionnaireCourseId} onValueChange={setQuestionnaireCourseId}>
                         <SelectTrigger>
                           <SelectValue placeholder="Select course" />
@@ -593,7 +698,7 @@ function TrainerDashboard() {
                       </Select>
                     </div>
                     <div className="space-y-2">
-                      <Label>Deadline</Label>
+                      <Label required>Deadline</Label>
                       <Input
                         type="datetime-local"
                         value={questionnaireDeadline}
@@ -602,10 +707,11 @@ function TrainerDashboard() {
                       />
                     </div>
                     <div className="space-y-2 sm:col-span-2">
-                      <Label>Title</Label>
+                      <Label required>Title</Label>
                       <Input
                         value={questionnaireTitle}
                         onChange={(e) => setQuestionnaireTitle(e.target.value)}
+                        placeholder="e.g. Module 1 MCQ Check"
                         required
                       />
                     </div>
@@ -613,7 +719,12 @@ function TrainerDashboard() {
                   {mcqs.map((mcq, idx) => (
                     <div key={idx} className="space-y-3 rounded-lg border border-slate-200 p-4">
                       <div className="flex items-center justify-between">
-                        <p className="text-sm font-semibold text-slate-700">Question {idx + 1}</p>
+                        <p className="text-sm font-semibold text-slate-700">
+                          Question {idx + 1}
+                          <span className="ml-1 text-red-500" aria-hidden="true">
+                            *
+                          </span>
+                        </p>
                         {mcqs.length > 1 && (
                           <Button
                             type="button"
@@ -626,40 +737,55 @@ function TrainerDashboard() {
                         )}
                       </div>
                       <Textarea
-                        placeholder="Question text"
+                        placeholder="e.g. Which practice best protects sensitive organisational files?"
                         value={mcq.questionText}
                         onChange={(e) => updateMcq(idx, { questionText: e.target.value })}
                         required
                       />
                       {mcq.options.map((opt, oi) => (
-                        <Input
-                          key={oi}
-                          placeholder={`Option ${oi + 1}`}
-                          value={opt}
-                          onChange={(e) => {
-                            const options = [...mcq.options]
-                            options[oi] = e.target.value
-                            updateMcq(idx, { options })
-                          }}
-                          required
-                        />
+                        <div key={oi} className="space-y-1">
+                          <Label required>{`Option ${oi + 1}`}</Label>
+                          <Input
+                            placeholder={
+                              oi === 0
+                                ? "e.g. Share via public drive links"
+                                : oi === 1
+                                  ? "e.g. Use role-based access and encryption"
+                                  : oi === 2
+                                    ? "e.g. Email unencrypted attachments"
+                                    : "e.g. Store only on personal devices"
+                            }
+                            value={opt}
+                            onChange={(e) => {
+                              const options = [...mcq.options]
+                              options[oi] = e.target.value
+                              updateMcq(idx, { options })
+                            }}
+                            required
+                          />
+                        </div>
                       ))}
                       <div className="grid gap-3 sm:grid-cols-2">
                         <div className="space-y-2">
-                          <Label>Correct option index (0 to 3)</Label>
+                          <Label required>Correct option index (0 to 3)</Label>
                           <Input
                             type="number"
                             min={0}
                             max={3}
                             value={mcq.correctOption}
                             onChange={(e) => updateMcq(idx, { correctOption: Number(e.target.value) })}
+                            placeholder="e.g. 1 for the second option"
+                            required
                           />
+                          <p className="text-xs text-slate-500">0 = first option, 1 = second, 2 = third, 3 = fourth</p>
                         </div>
                         <div className="space-y-2">
-                          <Label>Subject tag</Label>
+                          <Label required>Subject tag</Label>
                           <Input
                             value={mcq.subjectTag}
                             onChange={(e) => updateMcq(idx, { subjectTag: e.target.value })}
+                            placeholder="e.g. Digital Literacy"
+                            required
                           />
                         </div>
                       </div>

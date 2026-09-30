@@ -6,6 +6,7 @@ import { signOut, useSession } from "next-auth/react"
 import { Button } from "@/components/ui/button"
 import { LayoutDashboard, LogOut } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { SangamLogo } from "@/components/sangam/logo"
 
 const navigationItems = {
   trainee: [{ name: "Dashboard", href: "/trainee", icon: LayoutDashboard }],
@@ -23,8 +24,8 @@ export function TopNavigation() {
     <header className="sticky top-0 z-40 border-b border-white/60 bg-white/80 backdrop-blur-md">
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3">
         <div className="flex items-center gap-6">
-          <Link href="/" className="text-xl font-bold tracking-tight text-sky-700">
-            SANGAM
+          <Link href="/" className="rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-sky-400">
+            <SangamLogo size={34} subtitle="Capacity Connect" />
           </Link>
           <nav className="hidden items-center gap-1 sm:flex">
             {navItems.map((item) => {

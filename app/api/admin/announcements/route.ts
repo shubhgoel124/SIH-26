@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { cuid, mutateDb, readDb, type AnnouncementType } from "@/lib/store"
 import { requireRole } from "@/lib/auth-helpers"
+import { badRequest, text } from "@/lib/validation"
 
 const VALID_TYPES: AnnouncementType[] = ["NOTIFICATION", "ACHIEVEMENT", "NEW_CONTENT"]
 
@@ -29,14 +30,15 @@ export async function POST(req: NextRequest) {
   const authResult = await requireRole("admin")
   if (!authResult.ok) return authResult.response
 
-  const { title, body, type } = await req.json()
+  const payload = await req.json()
+  const title = text(payload.title)
+  const body = text(payload.body)
+  const type = payload.type
 
-  if (!title || !body || !type) {
-    return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
-  }
-
-  if (!VALID_TYPES.includes(type)) {
-    return NextResponse.json({ error: "Invalid announcement type" }, { status: 400 })
+  if (!title) return badRequest("Announcement title is required")
+  if (!body) return badRequest("Announcement body is required")
+  if (!type || !VALID_TYPES.includes(type)) {
+    return badRequest("Select a valid announcement type")
   }
 
   const announcement = mutateDb((db) => {

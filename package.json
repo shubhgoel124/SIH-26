@@ -6,7 +6,7 @@
     "dev": "next dev --turbopack",
     "build": "next build --turbopack",
     "start": "next start",
-    "reset-data": "node -e \"require('fs').rmSync('data/db.json',{force:true}); console.log('Demo data will reseed on next request.')\""
+    "reset-data": "node -e \"const fs=require('fs');const os=require('os');const path=require('path');for (const p of [path.join('data','db.json'), path.join(os.tmpdir(),'sangam-db.json')]) { try { fs.rmSync(p,{force:true}); } catch {} } console.log('Demo data cleared. Restart npm run dev so in-memory data reseeds.')\""
   },
   "dependencies": {
     "@radix-ui/react-avatar": "^1.1.10",

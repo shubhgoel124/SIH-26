@@ -6,6 +6,7 @@ import { signOut, useSession } from "next-auth/react"
 import { Button } from "@/components/ui/button"
 import { LayoutDashboard, LogOut, Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { SangamLogo } from "@/components/sangam/logo"
 
 const navByRole: Record<string, { label: string; href: string }[]> = {
   trainee: [{ label: "Dashboard", href: "/trainee" }],
@@ -21,23 +22,31 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   if (status === "loading") {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-50">
+      <div className="flex min-h-dvh items-center justify-center bg-slate-50">
         <Loader2 className="h-8 w-8 animate-spin text-sky-600" aria-label="Loading session" />
       </div>
     )
   }
 
   return (
-    <div className="relative min-h-screen w-full bg-slate-50 text-slate-900">
+    <div className="relative min-h-dvh w-full overflow-x-hidden bg-slate-50 text-slate-900">
       <div
         className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(circle_at_top,_rgba(14,165,233,0.15),transparent_50%),radial-gradient(circle_at_20%_20%,rgba(59,130,246,0.1),transparent_40%),linear-gradient(180deg,rgba(226,241,255,0.7),transparent)]"
         aria-hidden="true"
       />
       <header className="sticky top-0 z-40 border-b border-white/60 bg-white/80 backdrop-blur-md">
-        <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3">
-          <div className="flex items-center gap-6">
-            <Link href="/" className="text-xl font-bold tracking-tight text-sky-700">
-              SANGAM
+        <div className="sangam-container flex flex-wrap items-center justify-between gap-2 py-2.5 sm:gap-4 sm:py-3">
+          <div className="flex min-w-0 flex-1 items-center gap-3 sm:gap-6">
+            <Link
+              href="/"
+              className="min-w-0 rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-sky-400"
+            >
+              <span className="sm:hidden">
+                <SangamLogo size={30} />
+              </span>
+              <span className="hidden sm:inline-flex">
+                <SangamLogo size={34} subtitle="Capacity Connect" />
+              </span>
             </Link>
             <nav className="hidden items-center gap-1 sm:flex">
               {items.map((item) => (
@@ -57,9 +66,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               ))}
             </nav>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex shrink-0 items-center gap-2 sm:gap-3">
             {session?.user && (
-              <span className="hidden text-sm text-slate-600 md:inline">
+              <span className="hidden max-w-[14rem] truncate text-sm text-slate-600 md:inline">
                 {session.user.name}{" "}
                 <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs capitalize text-slate-700">
                   {session.user.role}
@@ -73,16 +82,33 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               className="border-slate-200"
               onClick={() => signOut({ callbackUrl: "/" })}
             >
-              <LogOut className="mr-2 h-4 w-4" />
-              Sign out
+              <LogOut className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">Sign out</span>
             </Button>
           </div>
         </div>
+        {items.length > 0 && (
+          <nav className="sangam-container flex gap-1 overflow-x-auto pb-2 sm:hidden">
+            {items.map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={cn(
+                  "inline-flex shrink-0 items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                  pathname === item.href || pathname.startsWith(item.href + "/")
+                    ? "bg-sky-100 text-sky-800"
+                    : "bg-slate-50 text-slate-600"
+                )}
+              >
+                <LayoutDashboard className="h-4 w-4" />
+                {item.label}
+              </Link>
+            ))}
+          </nav>
+        )}
       </header>
-      <main className="relative mx-auto w-full max-w-6xl px-4 py-8">
-        <div className="rounded-[32px] bg-white/90 p-6 shadow-[0_30px_120px_rgba(15,23,42,0.08)] ring-1 ring-white/60 backdrop-blur sm:p-8">
-          {children}
-        </div>
+      <main className="relative sangam-container py-4 sm:py-6 md:py-8">
+        <div className="sangam-panel min-w-0 overflow-x-hidden">{children}</div>
       </main>
     </div>
   )

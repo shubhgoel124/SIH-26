@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { cuid, mutateDb, readDb } from "@/lib/store"
 import { requireRole } from "@/lib/auth-helpers"
+import { badRequest, csvList, isValidPhone, text } from "@/lib/validation"
 
 export async function GET() {
   const authResult = await requireRole("trainer")
@@ -17,7 +18,21 @@ export async function POST(req: NextRequest) {
   if (!authResult.ok) return authResult.response
 
   const body = await req.json()
-  const { bio, subjectAreas, yearsExperience, phone } = body
+  const bio = text(body.bio)
+  const phone = text(body.phone)
+  const subjectAreas = csvList(body.subjectAreas)
+  const yearsRaw = body.yearsExperience
+  const yearsExperience =
+    typeof yearsRaw === "number" ? yearsRaw : Number(text(yearsRaw))
+
+  if (!bio) return badRequest("Bio is required")
+  if (subjectAreas.length === 0) return badRequest("Add at least one subject area")
+  if (!Number.isFinite(yearsExperience) || yearsExperience < 0) {
+    return badRequest("Years of experience must be 0 or more")
+  }
+  if (!phone) return badRequest("Phone number is required")
+  if (!isValidPhone(phone)) return badRequest("Enter a valid phone number (10–15 digits)")
+
   const userId = authResult.session.user.id
 
   const profile = mutateDb((db) => {
@@ -28,10 +43,10 @@ export async function POST(req: NextRequest) {
       const created = {
         id: cuid(),
         userId,
-        bio: bio ?? undefined,
-        subjectAreas: Array.isArray(subjectAreas) ? subjectAreas : [],
-        yearsExperience: typeof yearsExperience === "number" ? yearsExperience : undefined,
-        phone: phone ?? undefined,
+        bio,
+        subjectAreas,
+        yearsExperience,
+        phone,
         updatedAt,
       }
       db.trainerProfiles.push(created)
@@ -39,18 +54,10 @@ export async function POST(req: NextRequest) {
     }
 
     const existing = db.trainerProfiles[idx]
-    if (bio !== undefined) existing.bio = bio
-    if (subjectAreas !== undefined) {
-      existing.subjectAreas = Array.isArray(subjectAreas) ? subjectAreas : []
-    }
-    if (yearsExperience !== undefined) {
-      const parsed =
-        typeof yearsExperience === "number"
-          ? yearsExperience
-          : Number(yearsExperience)
-      existing.yearsExperience = Number.isFinite(parsed) ? parsed : undefined
-    }
-    if (phone !== undefined) existing.phone = phone
+    existing.bio = bio
+    existing.subjectAreas = subjectAreas
+    existing.yearsExperience = yearsExperience
+    existing.phone = phone
     existing.updatedAt = updatedAt
     return { ...existing }
   })

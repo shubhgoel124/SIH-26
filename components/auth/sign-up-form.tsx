@@ -28,6 +28,20 @@ export function SignUpForm() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    const trimmedName = name.trim()
+    const trimmedEmail = email.trim()
+    if (!trimmedName) {
+      toast.error("Full name is required")
+      return
+    }
+    if (!trimmedEmail) {
+      toast.error("Email is required")
+      return
+    }
+    if (!password || password.length < 6) {
+      toast.error("Password must be at least 6 characters")
+      return
+    }
     if (!role) {
       toast.error("Please select a role")
       return
@@ -38,7 +52,7 @@ export function SignUpForm() {
       const res = await fetch("/api/sign-up", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, email, password, role }),
+        body: JSON.stringify({ name: trimmedName, email: trimmedEmail, password, role }),
       })
       const data = await res.json()
       if (!res.ok) {
@@ -66,29 +80,51 @@ export function SignUpForm() {
       <CardContent>
         <form className="space-y-4" onSubmit={handleSubmit}>
           <div className="space-y-2">
-            <Label htmlFor="name">Full name</Label>
-            <Input id="name" value={name} onChange={(e) => setName(e.target.value)} required />
+            <Label htmlFor="name" required>
+              Full name
+            </Label>
+            <Input
+              id="name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="e.g. Asha Verma"
+              required
+            />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
-            <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+            <Label htmlFor="email" required>
+              Email
+            </Label>
+            <Input
+              id="email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="e.g. asha.verma@organisation.gov.in"
+              required
+            />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="password">Password</Label>
+            <Label htmlFor="password" required>
+              Password
+            </Label>
             <Input
               id="password"
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              placeholder="At least 6 characters"
               required
               minLength={6}
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="signup-role">Role</Label>
+            <Label htmlFor="signup-role" required>
+              Role
+            </Label>
             <Select value={role} onValueChange={setRole}>
               <SelectTrigger id="signup-role">
-                <SelectValue placeholder="Select role" />
+                <SelectValue placeholder="Select Trainee, Trainer, or Admin" />
               </SelectTrigger>
               <SelectContent>
                 {roleOptions.map((r) => (

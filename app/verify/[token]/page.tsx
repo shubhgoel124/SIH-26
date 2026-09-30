@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { CheckCircle2, Loader2, XCircle } from "lucide-react"
+import { SangamLogo } from "@/components/sangam/logo"
 
 type VerifyPayload = {
   valid?: boolean
@@ -55,8 +56,8 @@ export default function VerifyCertificatePage() {
       />
       <header className="border-b border-white/60 bg-white/70 backdrop-blur">
         <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-4">
-          <Link href="/" className="text-xl font-bold text-sky-700">
-            SANGAM
+          <Link href="/" className="rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-sky-400">
+            <SangamLogo size={32} />
           </Link>
           <Button asChild variant="outline" size="sm">
             <Link href="/sign-in">Sign in</Link>

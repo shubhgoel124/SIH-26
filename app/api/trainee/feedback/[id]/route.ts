@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { cuid, mutateDb, readDb } from "@/lib/store"
 import { requireRole } from "@/lib/auth-helpers"
+import { badRequest, text } from "@/lib/validation"
 
 export async function POST(
   req: NextRequest,
@@ -12,9 +13,14 @@ export async function POST(
   const { id: courseId } = await params
   const traineeId = authResult.session.user.id
 
-  const { rating, comments } = await req.json()
-  if (typeof rating !== "number" || rating < 1 || rating > 5) {
-    return NextResponse.json({ error: "rating must be between 1 and 5" }, { status: 400 })
+  const payload = await req.json()
+  const rating = Number(payload.rating)
+  const comments = text(payload.comments)
+  if (!Number.isFinite(rating) || rating < 1 || rating > 5) {
+    return badRequest("Rating must be a number between 1 and 5")
+  }
+  if (!comments) {
+    return badRequest("Feedback comments are required")
   }
 
   const db = readDb()
@@ -37,7 +43,7 @@ export async function POST(
         traineeId,
         courseId,
         rating,
-        comments: comments ?? undefined,
+        comments,
         createdAt,
       }
       dbInner.courseFeedbacks.push(entry)
@@ -46,7 +52,7 @@ export async function POST(
 
     const existing = dbInner.courseFeedbacks[idx]
     existing.rating = rating
-    existing.comments = comments ?? undefined
+    existing.comments = comments
     return { ...existing }
   })
 

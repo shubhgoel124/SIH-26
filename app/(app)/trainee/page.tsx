@@ -186,17 +186,48 @@ function TraineeDashboard() {
 
   const saveProfile = async (e: React.FormEvent) => {
     e.preventDefault()
+    const qualifications = (profile.qualifications ?? "").trim()
+    const workExperience = (profile.workExperience ?? "").trim()
+    const phone = (profile.phone ?? "").trim()
+    const interests = splitCsv(interestsInput)
+    const skills = splitCsv(skillsInput)
+
+    if (!qualifications) {
+      toast.error("Qualifications are required")
+      return
+    }
+    if (!workExperience) {
+      toast.error("Work experience is required")
+      return
+    }
+    if (interests.length === 0) {
+      toast.error("Add at least one interest")
+      return
+    }
+    if (skills.length === 0) {
+      toast.error("Add at least one skill")
+      return
+    }
+    if (!phone) {
+      toast.error("Phone number is required")
+      return
+    }
+    if (!/^\d{10,15}$/.test(phone.replace(/[\s\-()+]/g, ""))) {
+      toast.error("Enter a valid phone number (10–15 digits)")
+      return
+    }
+
     setSaving(true)
     try {
       const res = await fetch("/api/trainee/profile", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          qualifications: profile.qualifications ?? "",
-          workExperience: profile.workExperience ?? "",
-          interests: splitCsv(interestsInput),
-          skills: splitCsv(skillsInput),
-          phone: profile.phone ?? "",
+          qualifications,
+          workExperience,
+          interests,
+          skills,
+          phone,
         }),
       })
       if (res.ok) {
@@ -262,13 +293,20 @@ function TraineeDashboard() {
       toast.error("Select a course")
       return
     }
+    const rating = Number(feedbackRating)
+    const comments = feedbackComments.trim()
+    if (!Number.isFinite(rating) || rating < 1 || rating > 5) {
+      toast.error("Rating must be between 1 and 5")
+      return
+    }
+    if (!comments) {
+      toast.error("Feedback comments are required")
+      return
+    }
     const res = await fetch(`/api/trainee/feedback/${feedbackCourseId}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        rating: Number(feedbackRating),
-        comments: feedbackComments,
-      }),
+      body: JSON.stringify({ rating, comments }),
     })
     if (res.ok) {
       toast.success("Feedback submitted")
@@ -341,7 +379,7 @@ function TraineeDashboard() {
       </div>
 
       <Tabs defaultValue="profile" className="w-full">
-        <TabsList className="flex h-auto flex-wrap gap-1 bg-slate-100 p-1">
+        <TabsList className="flex h-auto w-full flex-wrap justify-start gap-1 overflow-x-auto bg-slate-100 p-1">
           <TabsTrigger value="profile">Profile</TabsTrigger>
           <TabsTrigger value="courses">Browse courses</TabsTrigger>
           <TabsTrigger value="enrollments">My enrollments</TabsTrigger>
@@ -358,47 +396,65 @@ function TraineeDashboard() {
             <CardContent>
               <form className="grid gap-4 sm:grid-cols-2" onSubmit={saveProfile}>
                 <div className="space-y-2 sm:col-span-2">
-                  <Label htmlFor="qualifications">Qualifications</Label>
+                  <Label htmlFor="qualifications" required>
+                    Qualifications
+                  </Label>
                   <Textarea
                     id="qualifications"
                     value={profile.qualifications ?? ""}
                     onChange={(e) => setProfile({ ...profile, qualifications: e.target.value })}
+                    placeholder="e.g. B.A. Public Administration, MBA Finance, Diploma in Digital Literacy"
                     rows={3}
+                    required
                   />
                 </div>
                 <div className="space-y-2 sm:col-span-2">
-                  <Label htmlFor="workExperience">Work experience</Label>
+                  <Label htmlFor="workExperience" required>
+                    Work experience
+                  </Label>
                   <Textarea
                     id="workExperience"
                     value={profile.workExperience ?? ""}
                     onChange={(e) => setProfile({ ...profile, workExperience: e.target.value })}
+                    placeholder="e.g. 3 years as Section Officer, handled training coordination and reporting"
                     rows={3}
+                    required
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="interests">Interests (comma-separated)</Label>
+                  <Label htmlFor="interests" required>
+                    Interests (comma-separated)
+                  </Label>
                   <Input
                     id="interests"
                     value={interestsInput}
                     onChange={(e) => setInterestsInput(e.target.value)}
-                    placeholder="Policy, leadership, data"
+                    placeholder="e.g. Leadership, Digital tools, Public policy"
+                    required
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="skills">Skills (comma-separated)</Label>
+                  <Label htmlFor="skills" required>
+                    Skills (comma-separated)
+                  </Label>
                   <Input
                     id="skills"
                     value={skillsInput}
                     onChange={(e) => setSkillsInput(e.target.value)}
-                    placeholder="Communication, analysis"
+                    placeholder="e.g. MS Office, Communication, Data entry"
+                    required
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="phone">Phone</Label>
+                  <Label htmlFor="phone" required>
+                    Phone
+                  </Label>
                   <Input
                     id="phone"
                     value={profile.phone ?? ""}
                     onChange={(e) => setProfile({ ...profile, phone: e.target.value })}
+                    placeholder="e.g. 9876543210"
+                    required
                   />
                 </div>
                 <div className="flex items-end sm:col-span-2">
@@ -556,7 +612,7 @@ function TraineeDashboard() {
             <CardContent>
               <form className="grid gap-3 sm:grid-cols-2" onSubmit={submitFeedback}>
                 <div className="space-y-2 sm:col-span-2">
-                  <Label>Course</Label>
+                  <Label required>Course</Label>
                   <Select value={feedbackCourseId} onValueChange={setFeedbackCourseId}>
                     <SelectTrigger>
                       <SelectValue placeholder="Select enrolled course" />
@@ -571,7 +627,9 @@ function TraineeDashboard() {
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="rating">Rating (1 to 5)</Label>
+                  <Label htmlFor="rating" required>
+                    Rating (1 to 5)
+                  </Label>
                   <Input
                     id="rating"
                     type="number"
@@ -579,15 +637,21 @@ function TraineeDashboard() {
                     max={5}
                     value={feedbackRating}
                     onChange={(e) => setFeedbackRating(Number(e.target.value))}
+                    placeholder="e.g. 5"
+                    required
                   />
                 </div>
                 <div className="space-y-2 sm:col-span-2">
-                  <Label htmlFor="comments">Comments</Label>
+                  <Label htmlFor="comments" required>
+                    Comments
+                  </Label>
                   <Textarea
                     id="comments"
                     value={feedbackComments}
                     onChange={(e) => setFeedbackComments(e.target.value)}
+                    placeholder="e.g. Clear materials and helpful assessments. Would recommend to colleagues."
                     rows={3}
+                    required
                   />
                 </div>
                 <Button type="submit" className="bg-sky-600 hover:bg-sky-700 sm:col-span-2">

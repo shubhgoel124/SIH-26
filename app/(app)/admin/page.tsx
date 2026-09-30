@@ -149,12 +149,22 @@ function AdminDashboard() {
 
   const createAnnouncement = async (e: React.FormEvent) => {
     e.preventDefault()
+    const title = announcement.title.trim()
+    const body = announcement.body.trim()
+    if (!title) {
+      toast.error("Announcement title is required")
+      return
+    }
+    if (!body) {
+      toast.error("Announcement body is required")
+      return
+    }
     setPublishing(true)
     try {
       const res = await fetch("/api/admin/announcements", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(announcement),
+        body: JSON.stringify({ title, body, type: announcement.type }),
       })
       if (res.ok) {
         toast.success("Announcement posted")
@@ -196,7 +206,7 @@ function AdminDashboard() {
       </div>
 
       <Tabs defaultValue="approval" className="w-full">
-        <TabsList className="flex h-auto flex-wrap gap-1 bg-slate-100 p-1">
+        <TabsList className="flex h-auto w-full flex-wrap justify-start gap-1 overflow-x-auto bg-slate-100 p-1">
           <TabsTrigger value="approval">User approval</TabsTrigger>
           <TabsTrigger value="analytics">Analytics</TabsTrigger>
           <TabsTrigger value="announcements">Announcements</TabsTrigger>
@@ -279,13 +289,13 @@ function AdminDashboard() {
             </Card>
           </div>
 
-          <div className="grid gap-6 lg:grid-cols-2">
-            <Card className="border-slate-200/80 shadow-sm">
+          <div className="grid min-w-0 gap-6 lg:grid-cols-2">
+            <Card className="min-w-0 border-slate-200/80 shadow-sm">
               <CardHeader>
                 <CardTitle className="text-base">Enrollments by subject</CardTitle>
                 <CardDescription>Bar chart from enrollments grouped by course subject.</CardDescription>
               </CardHeader>
-              <CardContent className="h-72">
+              <CardContent className="h-64 min-w-0 sm:h-72">
                 {barData.length === 0 ? (
                   <p className="text-sm text-slate-500">No enrollment data yet.</p>
                 ) : (
@@ -302,12 +312,12 @@ function AdminDashboard() {
                 )}
               </CardContent>
             </Card>
-            <Card className="border-slate-200/80 shadow-sm">
+            <Card className="min-w-0 border-slate-200/80 shadow-sm">
               <CardHeader>
                 <CardTitle className="text-base">Enrollments by status</CardTitle>
                 <CardDescription>Distribution of enrollment statuses.</CardDescription>
               </CardHeader>
-              <CardContent className="h-72">
+              <CardContent className="h-64 min-w-0 sm:h-72">
                 {pieData.length === 0 ? (
                   <p className="text-sm text-slate-500">No status breakdown yet.</p>
                 ) : (
@@ -337,32 +347,38 @@ function AdminDashboard() {
             <CardContent>
               <form className="grid max-w-xl gap-4" onSubmit={createAnnouncement}>
                 <div className="space-y-2">
-                  <Label htmlFor="ann-title">Title</Label>
+                  <Label htmlFor="ann-title" required>
+                    Title
+                  </Label>
                   <Input
                     id="ann-title"
                     value={announcement.title}
                     onChange={(e) => setAnnouncement({ ...announcement, title: e.target.value })}
+                    placeholder="e.g. New leadership course now open for enrollment"
                     required
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="ann-body">Body</Label>
+                  <Label htmlFor="ann-body" required>
+                    Body
+                  </Label>
                   <Textarea
                     id="ann-body"
                     value={announcement.body}
                     onChange={(e) => setAnnouncement({ ...announcement, body: e.target.value })}
+                    placeholder="e.g. Departments can now enroll staff in Digital Workplace Essentials. Batch starts next Monday."
                     required
                     rows={4}
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>Type</Label>
+                  <Label required>Type</Label>
                   <Select
                     value={announcement.type}
                     onValueChange={(v) => setAnnouncement({ ...announcement, type: v })}
                   >
                     <SelectTrigger>
-                      <SelectValue />
+                      <SelectValue placeholder="Select announcement type" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="NOTIFICATION">Notification</SelectItem>

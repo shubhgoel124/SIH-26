@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Loader2 } from "lucide-react"
+import { SangamLogo } from "@/components/sangam/logo"
 
 const roleOptions = [
   { value: "trainee", label: "Trainee" },
@@ -71,17 +72,21 @@ export function LoginScreen() {
   }
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-slate-50 text-slate-900">
+    <div className="relative min-h-dvh overflow-x-hidden bg-slate-50 text-slate-900">
       <div
         className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(circle_at_top,_rgba(14,165,233,0.18),transparent_55%),radial-gradient(circle_at_80%_20%,rgba(56,189,248,0.12),transparent_40%),linear-gradient(180deg,rgba(226,241,255,0.85),transparent)]"
         aria-hidden="true"
       />
-      <div className="mx-auto flex min-h-screen max-w-lg flex-col justify-center px-4 py-12">
-        <div className="mb-8 text-center">
-          <Link href="/" className="text-4xl font-bold tracking-tight text-sky-700">
-            SANGAM
+      <div className="mx-auto flex min-h-dvh w-full max-w-lg flex-col justify-center px-3 py-8 sm:px-4 sm:py-12">
+        <div className="mb-6 flex justify-center px-1 sm:mb-8">
+          <Link href="/" className="rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-sky-400">
+            <SangamLogo
+              variant="stacked"
+              size={48}
+              className="sm:[&_svg]:h-14 sm:[&_svg]:w-14"
+              subtitle="Capacity Connect — sign in to your dashboard"
+            />
           </Link>
-          <p className="mt-2 text-sm text-slate-600">Capacity Connect - sign in to your dashboard</p>
         </div>
 
         <Card className="border-slate-200/80 bg-white/95 shadow-xl shadow-sky-100/60 backdrop-blur">
@@ -102,33 +107,40 @@ export function LoginScreen() {
               }}
             >
               <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
+                <Label htmlFor="email" required>
+                  Email
+                </Label>
                 <Input
                   id="email"
                   type="email"
                   autoComplete="email"
-                  placeholder="you@sangam.dev"
+                  placeholder="e.g. trainee@sangam.dev"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
+                <Label htmlFor="password" required>
+                  Password
+                </Label>
                 <Input
                   id="password"
                   type="password"
                   autoComplete="current-password"
+                  placeholder="Enter your password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="role">Role</Label>
+                <Label htmlFor="role" required>
+                  Role
+                </Label>
                 <Select value={selectedRole} onValueChange={setSelectedRole}>
                   <SelectTrigger id="role">
-                    <SelectValue placeholder="Select role" />
+                    <SelectValue placeholder="Select Trainee, Trainer, or Admin" />
                   </SelectTrigger>
                   <SelectContent>
                     {roleOptions.map((role) => (

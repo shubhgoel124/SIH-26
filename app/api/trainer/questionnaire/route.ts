@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { cuid, mutateDb, readDb } from "@/lib/store"
 import { requireRole } from "@/lib/auth-helpers"
+import { badRequest, text } from "@/lib/validation"
 
 type QuestionInput = {
   questionText: string
@@ -13,10 +14,17 @@ export async function POST(req: NextRequest) {
   const authResult = await requireRole("trainer")
   if (!authResult.ok) return authResult.response
 
-  const { courseId, title, deadline, questions } = await req.json()
+  const payload = await req.json()
+  const courseId = text(payload.courseId)
+  const title = text(payload.title)
+  const deadline = text(payload.deadline)
+  const questions = payload.questions
 
-  if (!courseId || !title || !deadline || !Array.isArray(questions) || questions.length === 0) {
-    return NextResponse.json({ error: "Missing or invalid fields" }, { status: 400 })
+  if (!courseId) return badRequest("Select a course")
+  if (!title) return badRequest("Questionnaire title is required")
+  if (!deadline) return badRequest("Deadline is required")
+  if (!Array.isArray(questions) || questions.length === 0) {
+    return badRequest("Add at least one question")
   }
 
   const db = readDb()
@@ -30,23 +38,37 @@ export async function POST(req: NextRequest) {
 
   const parsedDeadline = new Date(deadline)
   if (Number.isNaN(parsedDeadline.getTime())) {
-    return NextResponse.json({ error: "Invalid deadline" }, { status: 400 })
+    return badRequest("Invalid deadline")
   }
 
-  for (const q of questions as QuestionInput[]) {
-    if (!q.questionText || !Array.isArray(q.options) || q.options.length < 2) {
-      return NextResponse.json({ error: "Each question needs text and at least 2 options" }, { status: 400 })
+  const cleaned: QuestionInput[] = []
+  for (const [i, q] of (questions as QuestionInput[]).entries()) {
+    const questionText = text(q?.questionText)
+    const subjectTag = text(q?.subjectTag)
+    const options = Array.isArray(q?.options) ? q.options.map((o) => text(o)) : []
+
+    if (!questionText) {
+      return badRequest(`Question ${i + 1}: question text is required`)
+    }
+    if (options.length < 2 || options.some((o) => !o)) {
+      return badRequest(`Question ${i + 1}: fill in every option (at least 2)`)
     }
     if (
       typeof q.correctOption !== "number" ||
       q.correctOption < 0 ||
-      q.correctOption >= q.options.length
+      q.correctOption >= options.length
     ) {
-      return NextResponse.json({ error: "Invalid correctOption for a question" }, { status: 400 })
+      return badRequest(`Question ${i + 1}: pick a valid correct option index`)
     }
-    if (!q.subjectTag) {
-      return NextResponse.json({ error: "Each question needs a subjectTag" }, { status: 400 })
+    if (!subjectTag) {
+      return badRequest(`Question ${i + 1}: subject tag is required`)
     }
+    cleaned.push({
+      questionText,
+      options,
+      correctOption: q.correctOption,
+      subjectTag,
+    })
   }
 
   const questionnaire = mutateDb((dbInner) => {
@@ -62,7 +84,7 @@ export async function POST(req: NextRequest) {
     }
     dbInner.questionnaires.push(qEntry)
 
-    const questionRecords = (questions as QuestionInput[]).map((q) => ({
+    const questionRecords = cleaned.map((q) => ({
       id: cuid(),
       questionnaireId,
       questionText: q.questionText,

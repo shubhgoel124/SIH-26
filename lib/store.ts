@@ -273,11 +273,11 @@ function seedDb(): Database {
   db.traineeProfiles.push({
     id: cuid(),
     userId: traineeId,
-    qualifications: "B.A. Public Administration",
-    workExperience: "3 years as section officer",
-    interests: ["Leadership", "Digital tools"],
-    skills: ["MS Office", "Communication"],
-    phone: "9123456780",
+    qualifications: "",
+    workExperience: "",
+    interests: [],
+    skills: [],
+    phone: "",
     certificateUrls: [],
     updatedAt: now(),
   })
@@ -397,6 +397,14 @@ function seedDb(): Database {
       title: "First cohort certification milestone",
       body: "Celebrating organisations that completed foundational digital literacy modules.",
       type: "ACHIEVEMENT",
+      postedAt: now(),
+    },
+    {
+      id: cuid(),
+      postedById: adminId,
+      title: "Assessment window opens next week",
+      body: "Trainees enrolled in active courses can attempt Module 1 MCQ checks from Monday. Complete materials first for better scores.",
+      type: "NOTIFICATION",
       postedAt: now(),
     }
   )

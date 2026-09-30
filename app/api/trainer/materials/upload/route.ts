@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { cuid, mutateDb, readDb, type MaterialType } from "@/lib/store"
 import { requireRole } from "@/lib/auth-helpers"
+import { badRequest, text } from "@/lib/validation"
 
 const VALID_TYPES: MaterialType[] = ["VIDEO", "PDF", "PRESENTATION", "OTHER"]
 
@@ -8,15 +9,16 @@ export async function POST(req: NextRequest) {
   const authResult = await requireRole("trainer")
   if (!authResult.ok) return authResult.response
 
-  const { courseId, title, type, fileUrl } = await req.json()
+  const payload = await req.json()
+  const courseId = text(payload.courseId)
+  const title = text(payload.title)
+  const type = payload.type
+  const fileUrl = text(payload.fileUrl)
 
-  if (!courseId || !title || !type || !fileUrl) {
-    return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
-  }
-
-  if (!VALID_TYPES.includes(type)) {
-    return NextResponse.json({ error: "Invalid material type" }, { status: 400 })
-  }
+  if (!courseId) return badRequest("Select a course")
+  if (!title) return badRequest("Material title is required")
+  if (!type || !VALID_TYPES.includes(type)) return badRequest("Select a valid material type")
+  if (!fileUrl) return badRequest("Upload a file first")
 
   const db = readDb()
   const course = db.courses.find((c) => c.id === courseId)
