@@ -1,5 +1,5 @@
 import { auth } from "@/auth"
-import { prisma } from "@/lib/prisma"
+import { findUserById, mutateDb } from "@/lib/store"
 import { NextRequest, NextResponse } from "next/server"
 
 export async function POST(req: NextRequest) {
@@ -24,10 +24,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const existingUser = await prisma.user.findUnique({
-      where: { id: session.user.id },
-      select: { id: true, password: true },
-    })
+    const existingUser = findUserById(session.user.id)
 
     if (!existingUser) {
       return NextResponse.json({ message: "Account not found" }, { status: 404 })
@@ -37,9 +34,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ message: "Current password is incorrect" }, { status: 400 })
     }
 
-    await prisma.user.update({
-      where: { id: session.user.id },
-      data: { password: newPassword },
+    mutateDb((db) => {
+      const user = db.users.find((u) => u.id === session.user.id)
+      if (user) user.password = newPassword
     })
 
     return NextResponse.json({ message: "Password updated successfully" })

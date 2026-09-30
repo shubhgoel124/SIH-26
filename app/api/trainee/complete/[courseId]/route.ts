@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { prisma } from "@/lib/prisma"
+import { cuid, mutateDb, readDb } from "@/lib/store"
 import { requireRole } from "@/lib/auth-helpers"
 
 export async function POST(
@@ -12,42 +12,47 @@ export async function POST(
   const { courseId } = await params
   const traineeId = authResult.session.user.id
 
-  const enrollment = await prisma.enrollment.findUnique({
-    where: { traineeId_courseId: { traineeId, courseId } },
-    include: {
-      course: { include: { trainer: { select: { name: true } } } },
-      trainee: { select: { name: true } },
-    },
-  })
+  const db = readDb()
+  const enrollment = db.enrollments.find(
+    (e) => e.traineeId === traineeId && e.courseId === courseId
+  )
 
   if (!enrollment) {
     return NextResponse.json({ error: "Not enrolled in this course" }, { status: 403 })
   }
 
-  const updatedEnrollment = await prisma.enrollment.update({
-    where: { id: enrollment.id },
-    data: {
-      status: "COMPLETED",
-      progressPercent: 100,
-      completionDate: new Date(),
-    },
-  })
+  const course = db.courses.find((c) => c.id === courseId)
+  const trainer = course ? db.users.find((u) => u.id === course.trainerId) : undefined
 
-  let certificate = await prisma.certificate.findFirst({
-    where: { traineeId, courseId },
-  })
+  const result = mutateDb((dbInner) => {
+    const en = dbInner.enrollments.find((e) => e.id === enrollment.id)
+    if (!en) throw new Error("Enrollment missing")
 
-  if (!certificate) {
-    certificate = await prisma.certificate.create({
-      data: {
+    const completionDate = new Date().toISOString()
+    en.status = "COMPLETED"
+    en.progressPercent = 100
+    en.completionDate = completionDate
+
+    let certificate = dbInner.certificates.find(
+      (c) => c.traineeId === traineeId && c.courseId === courseId
+    )
+
+    if (!certificate && course) {
+      certificate = {
+        id: cuid(),
         traineeId,
         courseId,
-        title: `Certificate of Completion — ${enrollment.course.title}`,
-        issuer: enrollment.course.trainer?.name ?? "SANGAM Training Program",
+        title: `Certificate of Completion - ${course.title}`,
+        issuer: trainer?.name ?? "SANGAM Training Program",
+        issueDate: completionDate,
+        verificationToken: cuid(),
         isPublic: true,
-      },
-    })
-  }
+      }
+      dbInner.certificates.push(certificate)
+    }
 
-  return NextResponse.json({ enrollment: updatedEnrollment, certificate })
+    return { enrollment: { ...en }, certificate: certificate ? { ...certificate } : null }
+  })
+
+  return NextResponse.json(result)
 }

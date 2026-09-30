@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { prisma } from "@/lib/prisma"
+import { mutateDb } from "@/lib/store"
 import { requireRole } from "@/lib/auth-helpers"
 
 export async function POST(
@@ -16,24 +16,22 @@ export async function POST(
     return NextResponse.json({ error: 'action must be "approve" or "reject"' }, { status: 400 })
   }
 
-  const user = await prisma.user.findUnique({ where: { id } })
-  if (!user) {
+  const updated = mutateDb((db) => {
+    const user = db.users.find((u) => u.id === id)
+    if (!user) return null
+    user.approvalStatus = action === "approve" ? "APPROVED" : "REJECTED"
+    return {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      approvalStatus: user.approvalStatus,
+    }
+  })
+
+  if (!updated) {
     return NextResponse.json({ error: "User not found" }, { status: 404 })
   }
-
-  const updated = await prisma.user.update({
-    where: { id },
-    data: {
-      approvalStatus: action === "approve" ? "APPROVED" : "REJECTED",
-    },
-    select: {
-      id: true,
-      name: true,
-      email: true,
-      role: true,
-      approvalStatus: true,
-    },
-  })
 
   return NextResponse.json({ user: updated })
 }

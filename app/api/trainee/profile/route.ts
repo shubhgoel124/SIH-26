@@ -1,14 +1,13 @@
 import { NextRequest, NextResponse } from "next/server"
-import { prisma } from "@/lib/prisma"
+import { cuid, mutateDb, readDb } from "@/lib/store"
 import { requireRole } from "@/lib/auth-helpers"
 
 export async function GET() {
   const authResult = await requireRole("trainee")
   if (!authResult.ok) return authResult.response
 
-  const profile = await prisma.traineeProfile.findUnique({
-    where: { userId: authResult.session.user.id },
-  })
+  const db = readDb()
+  const profile = db.traineeProfiles.find((p) => p.userId === authResult.session.user.id) ?? null
 
   return NextResponse.json({ profile })
 }
@@ -27,27 +26,39 @@ export async function POST(req: NextRequest) {
     certificateUrls,
   } = body
 
-  const profile = await prisma.traineeProfile.upsert({
-    where: { userId: authResult.session.user.id },
-    create: {
-      userId: authResult.session.user.id,
-      qualifications: qualifications ?? null,
-      workExperience: workExperience ?? null,
-      interests: Array.isArray(interests) ? interests : [],
-      skills: Array.isArray(skills) ? skills : [],
-      phone: phone ?? null,
-      certificateUrls: Array.isArray(certificateUrls) ? certificateUrls : [],
-    },
-    update: {
-      ...(qualifications !== undefined && { qualifications }),
-      ...(workExperience !== undefined && { workExperience }),
-      ...(interests !== undefined && { interests: Array.isArray(interests) ? interests : [] }),
-      ...(skills !== undefined && { skills: Array.isArray(skills) ? skills : [] }),
-      ...(phone !== undefined && { phone }),
-      ...(certificateUrls !== undefined && {
+  const userId = authResult.session.user.id
+
+  const profile = mutateDb((db) => {
+    const idx = db.traineeProfiles.findIndex((p) => p.userId === userId)
+    const updatedAt = new Date().toISOString()
+
+    if (idx === -1) {
+      const created = {
+        id: cuid(),
+        userId,
+        qualifications: qualifications ?? undefined,
+        workExperience: workExperience ?? undefined,
+        interests: Array.isArray(interests) ? interests : [],
+        skills: Array.isArray(skills) ? skills : [],
+        phone: phone ?? undefined,
         certificateUrls: Array.isArray(certificateUrls) ? certificateUrls : [],
-      }),
-    },
+        updatedAt,
+      }
+      db.traineeProfiles.push(created)
+      return created
+    }
+
+    const existing = db.traineeProfiles[idx]
+    if (qualifications !== undefined) existing.qualifications = qualifications
+    if (workExperience !== undefined) existing.workExperience = workExperience
+    if (interests !== undefined) existing.interests = Array.isArray(interests) ? interests : []
+    if (skills !== undefined) existing.skills = Array.isArray(skills) ? skills : []
+    if (phone !== undefined) existing.phone = phone
+    if (certificateUrls !== undefined) {
+      existing.certificateUrls = Array.isArray(certificateUrls) ? certificateUrls : []
+    }
+    existing.updatedAt = updatedAt
+    return { ...existing }
   })
 
   return NextResponse.json({ profile })

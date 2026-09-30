@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { prisma } from "@/lib/prisma"
+import { cuid, mutateDb, readDb } from "@/lib/store"
 import { requireRole } from "@/lib/auth-helpers"
 
 type QuestionInput = {
@@ -19,7 +19,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Missing or invalid fields" }, { status: 400 })
   }
 
-  const course = await prisma.course.findUnique({ where: { id: courseId } })
+  const db = readDb()
+  const course = db.courses.find((c) => c.id === courseId)
   if (!course) {
     return NextResponse.json({ error: "Course not found" }, { status: 404 })
   }
@@ -48,22 +49,30 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  const questionnaire = await prisma.questionnaire.create({
-    data: {
+  const questionnaire = mutateDb((dbInner) => {
+    const questionnaireId = cuid()
+    const createdAt = new Date().toISOString()
+    const qEntry = {
+      id: questionnaireId,
       courseId,
       trainerId: authResult.session.user.id,
       title,
-      deadline: parsedDeadline,
-      questions: {
-        create: (questions as QuestionInput[]).map((q) => ({
-          questionText: q.questionText,
-          options: q.options,
-          correctOption: q.correctOption,
-          subjectTag: q.subjectTag,
-        })),
-      },
-    },
-    include: { questions: true },
+      deadline: parsedDeadline.toISOString(),
+      createdAt,
+    }
+    dbInner.questionnaires.push(qEntry)
+
+    const questionRecords = (questions as QuestionInput[]).map((q) => ({
+      id: cuid(),
+      questionnaireId,
+      questionText: q.questionText,
+      options: q.options,
+      correctOption: q.correctOption,
+      subjectTag: q.subjectTag,
+    }))
+    dbInner.questions.push(...questionRecords)
+
+    return { ...qEntry, questions: questionRecords }
   })
 
   return NextResponse.json({ questionnaire }, { status: 201 })

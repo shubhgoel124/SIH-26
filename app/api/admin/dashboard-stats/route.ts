@@ -1,66 +1,54 @@
 import { NextResponse } from "next/server"
-import { prisma } from "@/lib/prisma"
+import { readDb } from "@/lib/store"
 import { requireRole } from "@/lib/auth-helpers"
+
+function groupCount<T, K extends string | number>(
+  items: T[],
+  keyFn: (item: T) => K
+): { key: K; count: number }[] {
+  const map = new Map<K, number>()
+  for (const item of items) {
+    const key = keyFn(item)
+    map.set(key, (map.get(key) ?? 0) + 1)
+  }
+  return Array.from(map.entries()).map(([key, count]) => ({ key, count }))
+}
 
 export async function GET() {
   const authResult = await requireRole("admin")
   if (!authResult.ok) return authResult.response
 
-  const [
-    coursesCount,
-    enrollmentsCount,
-    certificationsCount,
-    coursesBySubject,
-    coursesByStatus,
-    enrollmentsByStatus,
-    enrollmentsBySubject,
-    courseParticipationRows,
-    completedAttempts,
-  ] = await Promise.all([
-    prisma.course.count(),
-    prisma.enrollment.count(),
-    prisma.certificate.count(),
-    prisma.course.groupBy({
-      by: ["subjectTag"],
-      _count: { _all: true },
-      orderBy: { subjectTag: "asc" },
-    }),
-    prisma.course.groupBy({
-      by: ["status"],
-      _count: { _all: true },
-    }),
-    prisma.enrollment.groupBy({
-      by: ["status"],
-      _count: { _all: true },
-    }),
-    prisma.enrollment.findMany({
-      select: {
-        course: { select: { subjectTag: true } },
-      },
-    }),
-    prisma.course.findMany({
-      select: {
-        _count: { select: { enrollments: true, questionnaires: true } },
-      },
-    }),
-    prisma.assessmentAttempt.count(),
-  ])
+  const db = readDb()
 
-  const expectedAttempts = courseParticipationRows.reduce(
-    (sum, course) =>
-      sum + course._count.enrollments * course._count.questionnaires,
-    0
+  const coursesCount = db.courses.length
+  const enrollmentsCount = db.enrollments.length
+  const certificationsCount = db.certificates.length
+  const completedAttempts = db.assessmentAttempts.length
+
+  const coursesBySubjectRaw = groupCount(db.courses, (c) => c.subjectTag).sort((a, b) =>
+    String(a.key).localeCompare(String(b.key))
   )
+  const coursesByStatusRaw = groupCount(db.courses, (c) => c.status)
+  const enrollmentsByStatusRaw = groupCount(db.enrollments, (e) => e.status)
 
   const subjectEnrollmentMap = new Map<string, number>()
-  for (const row of enrollmentsBySubject) {
-    const tag = row.course.subjectTag
+  for (const enrollment of db.enrollments) {
+    const course = db.courses.find((c) => c.id === enrollment.courseId)
+    if (!course) continue
+    const tag = course.subjectTag
     subjectEnrollmentMap.set(tag, (subjectEnrollmentMap.get(tag) ?? 0) + 1)
   }
 
   const enrollmentsBySubjectChart = Array.from(subjectEnrollmentMap.entries())
     .map(([subjectTag, count]) => ({ subjectTag, count }))
     .sort((a, b) => a.subjectTag.localeCompare(b.subjectTag))
+
+  let expectedAttempts = 0
+  for (const course of db.courses) {
+    const enrollmentCount = db.enrollments.filter((e) => e.courseId === course.id).length
+    const questionnaireCount = db.questionnaires.filter((q) => q.courseId === course.id).length
+    expectedAttempts += enrollmentCount * questionnaireCount
+  }
 
   const assessmentCompletionRate =
     expectedAttempts > 0
@@ -81,17 +69,17 @@ export async function GET() {
       assessmentAttempts: completedAttempts,
     },
     charts: {
-      coursesBySubject: coursesBySubject.map((row) => ({
-        subjectTag: row.subjectTag,
-        count: row._count._all,
+      coursesBySubject: coursesBySubjectRaw.map((row) => ({
+        subjectTag: row.key,
+        count: row.count,
       })),
-      coursesByStatus: coursesByStatus.map((row) => ({
-        status: row.status,
-        count: row._count._all,
+      coursesByStatus: coursesByStatusRaw.map((row) => ({
+        status: row.key,
+        count: row.count,
       })),
-      enrollmentsByStatus: enrollmentsByStatus.map((row) => ({
-        status: row.status,
-        count: row._count._all,
+      enrollmentsByStatus: enrollmentsByStatusRaw.map((row) => ({
+        status: row.key,
+        count: row.count,
       })),
       enrollmentsBySubject: enrollmentsBySubjectChart,
       participationBySubject,

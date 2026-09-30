@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { prisma } from "@/lib/prisma"
+import { cuid, mutateDb, readDb } from "@/lib/store"
 import { requireRole } from "@/lib/auth-helpers"
 
 export async function POST(
@@ -17,25 +17,37 @@ export async function POST(
     return NextResponse.json({ error: "rating must be between 1 and 5" }, { status: 400 })
   }
 
-  const enrollment = await prisma.enrollment.findUnique({
-    where: { traineeId_courseId: { traineeId, courseId } },
-  })
+  const db = readDb()
+  const enrollment = db.enrollments.find(
+    (e) => e.traineeId === traineeId && e.courseId === courseId
+  )
   if (!enrollment) {
     return NextResponse.json({ error: "Not enrolled in this course" }, { status: 403 })
   }
 
-  const feedback = await prisma.courseFeedback.upsert({
-    where: { traineeId_courseId: { traineeId, courseId } },
-    create: {
-      traineeId,
-      courseId,
-      rating,
-      comments: comments ?? null,
-    },
-    update: {
-      rating,
-      comments: comments ?? null,
-    },
+  const feedback = mutateDb((dbInner) => {
+    const idx = dbInner.courseFeedbacks.findIndex(
+      (f) => f.traineeId === traineeId && f.courseId === courseId
+    )
+    const createdAt = new Date().toISOString()
+
+    if (idx === -1) {
+      const entry = {
+        id: cuid(),
+        traineeId,
+        courseId,
+        rating,
+        comments: comments ?? undefined,
+        createdAt,
+      }
+      dbInner.courseFeedbacks.push(entry)
+      return entry
+    }
+
+    const existing = dbInner.courseFeedbacks[idx]
+    existing.rating = rating
+    existing.comments = comments ?? undefined
+    return { ...existing }
   })
 
   return NextResponse.json({ feedback })

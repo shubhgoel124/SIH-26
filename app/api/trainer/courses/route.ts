@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
-import { prisma } from "@/lib/prisma"
+import { cuid, mutateDb, readDb, type CourseStatus } from "@/lib/store"
 import { requireRole } from "@/lib/auth-helpers"
-import type { CourseStatus } from "@/lib/generated/prisma"
 
 const VALID_STATUSES: CourseStatus[] = ["DRAFT", "ACTIVE", "COMPLETED", "ARCHIVED"]
 
@@ -9,15 +8,25 @@ export async function GET() {
   const authResult = await requireRole("trainer")
   if (!authResult.ok) return authResult.response
 
-  const courses = await prisma.course.findMany({
-    where: { trainerId: authResult.session.user.id },
-    include: {
-      _count: {
-        select: { enrollments: true, materials: true, questionnaires: true },
-      },
-    },
-    orderBy: { createdAt: "desc" },
-  })
+  const trainerId = authResult.session.user.id
+  const db = readDb()
+
+  const courses = db.courses
+    .filter((c) => c.trainerId === trainerId)
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+    .map((course) => {
+      const enrollmentsCount = db.enrollments.filter((e) => e.courseId === course.id).length
+      const materialsCount = db.courseMaterials.filter((m) => m.courseId === course.id).length
+      const questionnairesCount = db.questionnaires.filter((q) => q.courseId === course.id).length
+      return {
+        ...course,
+        _count: {
+          enrollments: enrollmentsCount,
+          materials: materialsCount,
+          questionnaires: questionnairesCount,
+        },
+      }
+    })
 
   return NextResponse.json({ courses })
 }
@@ -43,16 +52,20 @@ export async function POST(req: NextRequest) {
     courseStatus = status
   }
 
-  const course = await prisma.course.create({
-    data: {
+  const course = mutateDb((db) => {
+    const entry = {
+      id: cuid(),
       title,
       description,
       subjectTag,
       trainerId: authResult.session.user.id,
-      startDate: parsedStart,
-      endDate: parsedEnd,
+      startDate: parsedStart.toISOString(),
+      endDate: parsedEnd.toISOString(),
       status: courseStatus,
-    },
+      createdAt: new Date().toISOString(),
+    }
+    db.courses.push(entry)
+    return entry
   })
 
   return NextResponse.json({ course }, { status: 201 })

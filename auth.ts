@@ -1,8 +1,10 @@
 import NextAuth from "next-auth"
 import Credentials from "next-auth/providers/credentials"
-import { prisma } from "@/lib/prisma"
-import type { Role } from "@/lib/generated/prisma"
 import type { JWT } from "next-auth/jwt"
+import { findUserByEmail, type Role } from "@/lib/store"
+
+// Keep JWT import so module augmentation resolves under NextAuth v5.
+void 0 as unknown as JWT
 
 declare module "next-auth" {
   interface Session {
@@ -56,7 +58,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           return null
         }
 
-        const user = await prisma.user.findUnique({ where: { email } })
+        const user = findUserByEmail(email)
 
         if (!user || user.password !== password) return null
         if (user.role !== roleMap[roleKey]) return null

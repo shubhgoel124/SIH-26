@@ -1,23 +1,35 @@
 import { NextResponse } from "next/server"
-import { prisma } from "@/lib/prisma"
+import { readDb } from "@/lib/store"
 
 export async function GET(
   _req: Request,
   { params }: { params: Promise<{ token: string }> }
 ) {
   const { token } = await params
-
-  const certificate = await prisma.certificate.findUnique({
-    where: { verificationToken: token },
-    include: {
-      trainee: { select: { name: true, email: true } },
-      course: { select: { id: true, title: true, subjectTag: true } },
-    },
-  })
+  const db = readDb()
+  const certificate = db.certificates.find((c) => c.verificationToken === token)
 
   if (!certificate || !certificate.isPublic) {
-    return NextResponse.json({ error: "Certificate not found" }, { status: 404 })
+    return NextResponse.json(
+      { valid: false, message: "Certificate not found or not public" },
+      { status: 404 }
+    )
   }
 
-  return NextResponse.json({ certificate })
+  const trainee = db.users.find((u) => u.id === certificate.traineeId)
+  const course = certificate.courseId
+    ? db.courses.find((c) => c.id === certificate.courseId)
+    : undefined
+
+  return NextResponse.json({
+    valid: true,
+    certificate: {
+      title: certificate.title,
+      issuer: certificate.issuer,
+      issueDate: certificate.issueDate,
+      traineeName: trainee?.name ?? "Unknown",
+      courseTitle: course?.title,
+      verificationToken: certificate.verificationToken,
+    },
+  })
 }

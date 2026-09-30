@@ -87,7 +87,7 @@ export default function Footer() {
 						<Link href="#" className="text-slate-100 hover:text-white">Alumni</Link>
 						<Link href="#" className="text-slate-100 hover:text-white">Telephone Directory</Link>
 					</div>
-					<p className="text-slate-200">© {new Date().getFullYear()} Opportunet — National internship & Placement Mission</p>
+					<p className="text-slate-200">© {new Date().getFullYear()} SANGAM - Capacity Connect</p>
 				</div>
 			</div>
 		</footer>

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { prisma } from "@/lib/prisma"
+import { readDb } from "@/lib/store"
 import { requireRole } from "@/lib/auth-helpers"
 
 export async function GET(
@@ -10,14 +10,9 @@ export async function GET(
   if (!authResult.ok) return authResult.response
 
   const { courseId } = await params
+  const db = readDb()
 
-  const course = await prisma.course.findUnique({
-    where: { id: courseId },
-    include: {
-      questionnaires: { select: { id: true, title: true } },
-    },
-  })
-
+  const course = db.courses.find((c) => c.id === courseId)
   if (!course) {
     return NextResponse.json({ error: "Course not found" }, { status: 404 })
   }
@@ -25,30 +20,47 @@ export async function GET(
     return NextResponse.json({ error: "Forbidden" }, { status: 403 })
   }
 
-  const enrollments = await prisma.enrollment.findMany({
-    where: { courseId },
-    include: {
-      trainee: { select: { id: true, name: true, email: true } },
-    },
-    orderBy: { enrolledAt: "desc" },
-  })
+  const questionnaires = db.questionnaires
+    .filter((q) => q.courseId === courseId)
+    .map((q) => ({ id: q.id, title: q.title }))
 
-  const questionnaireIds = course.questionnaires.map((q) => q.id)
+  const questionnaireIds = questionnaires.map((q) => q.id)
 
-  const attempts = await prisma.assessmentAttempt.findMany({
-    where: { questionnaireId: { in: questionnaireIds } },
-    include: {
-      trainee: { select: { id: true, name: true, email: true } },
-      questionnaire: { select: { id: true, title: true } },
-    },
-    orderBy: { submittedAt: "desc" },
-  })
+  const enrollments = db.enrollments
+    .filter((e) => e.courseId === courseId)
+    .sort((a, b) => b.enrolledAt.localeCompare(a.enrolledAt))
+    .map((e) => {
+      const trainee = db.users.find((u) => u.id === e.traineeId)
+      return {
+        ...e,
+        trainee: trainee
+          ? { id: trainee.id, name: trainee.name, email: trainee.email }
+          : { id: e.traineeId, name: "Unknown", email: "" },
+      }
+    })
+
+  const attempts = db.assessmentAttempts
+    .filter((a) => questionnaireIds.includes(a.questionnaireId))
+    .sort((a, b) => b.submittedAt.localeCompare(a.submittedAt))
+    .map((a) => {
+      const trainee = db.users.find((u) => u.id === a.traineeId)
+      const questionnaire = db.questionnaires.find((q) => q.id === a.questionnaireId)
+      return {
+        ...a,
+        trainee: trainee
+          ? { id: trainee.id, name: trainee.name, email: trainee.email }
+          : { id: a.traineeId, name: "Unknown", email: "" },
+        questionnaire: questionnaire
+          ? { id: questionnaire.id, title: questionnaire.title }
+          : { id: a.questionnaireId, title: "" },
+      }
+    })
 
   return NextResponse.json({
     course: {
       id: course.id,
       title: course.title,
-      questionnaires: course.questionnaires,
+      questionnaires,
     },
     enrollments,
     attempts,

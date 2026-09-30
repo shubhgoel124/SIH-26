@@ -1,6 +1,11 @@
-import { prisma } from "@/lib/prisma"
+import {
+  cuid,
+  findUserByEmail,
+  mutateDb,
+  type ApprovalStatus,
+  type Role,
+} from "@/lib/store"
 import { NextRequest, NextResponse } from "next/server"
-import type { Role } from "@/lib/generated/prisma"
 
 const roleMap: Record<string, Role> = {
   trainee: "TRAINEE",
@@ -21,35 +26,53 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Invalid role" }, { status: 400 })
     }
 
-    const existing = await prisma.user.findUnique({ where: { email } })
+    const existing = findUserByEmail(email)
     if (existing) {
       return NextResponse.json({ error: "User with this email already exists" }, { status: 400 })
     }
 
-    // Trainees are auto-approved; Trainer/Admin need approval (except seeded demos)
-    const approvalStatus = mappedRole === "TRAINEE" ? "APPROVED" : "PENDING"
+    const approvalStatus: ApprovalStatus =
+      mappedRole === "TRAINEE" ? "APPROVED" : "PENDING"
 
-    const user = await prisma.user.create({
-      data: {
+    const user = mutateDb((db) => {
+      const id = cuid()
+      const createdAt = new Date().toISOString()
+      const newUser = {
+        id,
         email,
         name,
         password,
         role: mappedRole,
         approvalStatus,
-        ...(mappedRole === "TRAINEE"
-          ? { traineeProfile: { create: { interests: [], skills: [], certificateUrls: [] } } }
-          : {}),
-        ...(mappedRole === "TRAINER"
-          ? { trainerProfile: { create: { subjectAreas: [] } } }
-          : {}),
-      },
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        role: true,
-        approvalStatus: true,
-      },
+        createdAt,
+      }
+      db.users.push(newUser)
+
+      if (mappedRole === "TRAINEE") {
+        db.traineeProfiles.push({
+          id: cuid(),
+          userId: id,
+          interests: [],
+          skills: [],
+          certificateUrls: [],
+          updatedAt: createdAt,
+        })
+      } else if (mappedRole === "TRAINER") {
+        db.trainerProfiles.push({
+          id: cuid(),
+          userId: id,
+          subjectAreas: [],
+          updatedAt: createdAt,
+        })
+      }
+
+      return {
+        id: newUser.id,
+        email: newUser.email,
+        name: newUser.name,
+        role: newUser.role,
+        approvalStatus: newUser.approvalStatus,
+      }
     })
 
     return NextResponse.json(

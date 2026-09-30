@@ -4,7 +4,7 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { signOut, useSession } from "next-auth/react"
 import { Button } from "@/components/ui/button"
-import { LayoutDashboard, LogOut } from "lucide-react"
+import { LayoutDashboard, LogOut, Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 const navByRole: Record<string, { label: string; href: string }[]> = {
@@ -14,10 +14,18 @@ const navByRole: Record<string, { label: string; href: string }[]> = {
 }
 
 export function AppShell({ children }: { children: React.ReactNode }) {
-  const { data: session } = useSession()
+  const { data: session, status } = useSession()
   const pathname = usePathname()
-  const role = session?.user?.role ?? "trainee"
-  const items = navByRole[role] ?? navByRole.trainee
+  const role = session?.user?.role
+  const items = role ? navByRole[role] ?? [] : []
+
+  if (status === "loading") {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-slate-50">
+        <Loader2 className="h-8 w-8 animate-spin text-sky-600" aria-label="Loading session" />
+      </div>
+    )
+  }
 
   return (
     <div className="relative min-h-screen w-full bg-slate-50 text-slate-900">
@@ -72,7 +80,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </div>
       </header>
       <main className="relative mx-auto w-full max-w-6xl px-4 py-8">
-        <div className="rounded-[32px] bg-white/80 p-6 shadow-[0_30px_120px_rgba(15,23,42,0.08)] ring-1 ring-white/60 backdrop-blur">
+        <div className="rounded-[32px] bg-white/90 p-6 shadow-[0_30px_120px_rgba(15,23,42,0.08)] ring-1 ring-white/60 backdrop-blur sm:p-8">
           {children}
         </div>
       </main>

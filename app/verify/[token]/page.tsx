@@ -7,7 +7,7 @@ import QRCode from "qrcode"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { CheckCircle2, XCircle } from "lucide-react"
+import { CheckCircle2, Loader2, XCircle } from "lucide-react"
 
 type VerifyPayload = {
   valid?: boolean
@@ -45,7 +45,7 @@ export default function VerifyCertificatePage() {
       .catch(() => setQrDataUrl(null))
   }, [token])
 
-  const valid = data?.valid === true || (data?.certificate != null && data.valid !== false)
+  const valid = data?.valid === true
 
   return (
     <div className="relative min-h-screen bg-slate-50 text-slate-900">
@@ -85,7 +85,10 @@ export default function VerifyCertificatePage() {
           </CardHeader>
           <CardContent className="space-y-6">
             {loading ? (
-              <p className="text-sm text-slate-500">Verifying...</p>
+              <div className="flex items-center gap-2 text-sm text-slate-500">
+                <Loader2 className="h-4 w-4 animate-spin text-sky-600" />
+                Verifying certificate
+              </div>
             ) : valid && data?.certificate ? (
               <div className="space-y-2 text-sm">
                 <p>

@@ -5,7 +5,7 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Bell, Megaphone, Sparkles } from "lucide-react"
+import { Bell, Loader2, Megaphone, Sparkles } from "lucide-react"
 
 type Announcement = {
   id: string
@@ -18,7 +18,13 @@ type Announcement = {
 const typeLabels: Record<Announcement["type"], string> = {
   NOTIFICATION: "Notification",
   ACHIEVEMENT: "Achievement",
-  NEW_CONTENT: "New Content",
+  NEW_CONTENT: "New content",
+}
+
+const typeStyles: Record<Announcement["type"], string> = {
+  NOTIFICATION: "border-sky-200 bg-sky-50 text-sky-800",
+  ACHIEVEMENT: "border-emerald-200 bg-emerald-50 text-emerald-800",
+  NEW_CONTENT: "border-slate-200 bg-slate-100 text-slate-800",
 }
 
 const typeIcons: Record<Announcement["type"], typeof Bell> = {
@@ -62,9 +68,9 @@ export default function HomePage() {
       <section className="mx-auto max-w-6xl px-4 py-16 text-center">
         <p className="text-sm font-semibold uppercase tracking-widest text-sky-600">Capacity Connect</p>
         <h1 className="mt-3 text-5xl font-bold tracking-tight text-slate-900 sm:text-6xl">SANGAM</h1>
-        <p className="mx-auto mt-4 max-w-2xl text-lg text-slate-600">
-          Unified portal for capacity building — courses, assessments, certificates, and trainer-led programs for
-          public sector learners.
+        <p className="mx-auto mt-4 max-w-2xl text-lg leading-relaxed text-slate-600">
+          Unified portal for capacity building: courses, assessments, certificates, and trainer-led programs for
+          organisational learners.
         </p>
         <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
           <Button asChild size="lg" className="bg-sky-600 hover:bg-sky-700">
@@ -77,28 +83,41 @@ export default function HomePage() {
       </section>
 
       <section className="mx-auto max-w-6xl px-4 pb-16">
-        <h2 className="mb-4 text-xl font-semibold text-slate-900">Announcements</h2>
+        <div className="mb-6 flex items-end justify-between gap-4">
+          <div>
+            <h2 className="text-xl font-semibold text-slate-900">Announcements</h2>
+            <p className="text-sm text-slate-500">Updates from your organisation administrators.</p>
+          </div>
+        </div>
         {loading ? (
-          <p className="text-sm text-slate-500">Loading announcements...</p>
+          <div className="flex items-center gap-2 text-sm text-slate-500">
+            <Loader2 className="h-4 w-4 animate-spin text-sky-600" />
+            Loading announcements
+          </div>
         ) : announcements.length === 0 ? (
-          <p className="text-sm text-slate-500">No announcements yet.</p>
+          <Card className="border-dashed border-slate-200 bg-white/60">
+            <CardContent className="py-10 text-center text-sm text-slate-500">No announcements yet.</CardContent>
+          </Card>
         ) : (
           <div className="grid gap-4 md:grid-cols-2">
             {announcements.map((item) => {
               const Icon = typeIcons[item.type] ?? Bell
               return (
-                <Card key={item.id} className="border-slate-200/80 bg-white/90">
+                <Card
+                  key={item.id}
+                  className="border-slate-200/80 bg-white/90 shadow-sm transition-shadow hover:shadow-md"
+                >
                   <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
-                    <CardTitle className="text-base font-semibold">{item.title}</CardTitle>
-                    <Badge variant="outline" className="border-sky-200 bg-sky-50 text-sky-800">
+                    <CardTitle className="text-base font-semibold leading-snug text-slate-900">{item.title}</CardTitle>
+                    <Badge variant="outline" className={typeStyles[item.type] ?? typeStyles.NOTIFICATION}>
                       <Icon className="mr-1 h-3 w-3" />
                       {typeLabels[item.type] ?? item.type}
                     </Badge>
                   </CardHeader>
                   <CardContent>
-                    <p className="text-sm text-slate-600">{item.body}</p>
+                    <p className="text-sm leading-relaxed text-slate-600">{item.body}</p>
                     {item.postedAt && (
-                      <p className="mt-2 text-xs text-slate-400">
+                      <p className="mt-3 text-xs font-medium text-slate-400">
                         {new Date(item.postedAt).toLocaleDateString(undefined, {
                           dateStyle: "medium",
                         })}
