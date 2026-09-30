@@ -1,5 +1,6 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs"
 import path from "path"
+import os from "os"
 
 export type Role = "TRAINEE" | "TRAINER" | "ADMIN"
 export type ApprovalStatus = "PENDING" | "APPROVED" | "REJECTED"
@@ -152,10 +153,18 @@ export type Database = {
   certificates: Certificate[]
 }
 
-const DATA_DIR = path.join(process.cwd(), "data")
-const DB_PATH = path.join(DATA_DIR, "db.json")
+const globalStore = globalThis as unknown as {
+  __sangamDb?: Database
+  __sangamMutating?: boolean
+}
 
-let mutating = false
+function dataPaths(): string[] {
+  const paths = [
+    path.join(process.cwd(), "data", "db.json"),
+    path.join(os.tmpdir(), "sangam-db.json"),
+  ]
+  return paths
+}
 
 export function cuid() {
   return `c${Date.now().toString(36)}${Math.random().toString(36).slice(2, 10)}`
@@ -426,14 +435,41 @@ function seedDb(): Database {
   return db
 }
 
-function ensureDb(): Database {
-  if (!existsSync(DATA_DIR)) mkdirSync(DATA_DIR, { recursive: true })
-  if (!existsSync(DB_PATH)) {
-    const seeded = seedDb()
-    writeFileSync(DB_PATH, JSON.stringify(seeded, null, 2))
-    return seeded
+function tryReadFile(): Database | null {
+  for (const filePath of dataPaths()) {
+    try {
+      if (existsSync(filePath)) {
+        return JSON.parse(readFileSync(filePath, "utf8")) as Database
+      }
+    } catch {
+      // ignore unreadable paths (e.g. read-only serverless FS)
+    }
   }
-  return JSON.parse(readFileSync(DB_PATH, "utf8")) as Database
+  return null
+}
+
+function tryWriteFile(db: Database) {
+  for (const filePath of dataPaths()) {
+    try {
+      const dir = path.dirname(filePath)
+      if (!existsSync(dir)) mkdirSync(dir, { recursive: true })
+      writeFileSync(filePath, JSON.stringify(db, null, 2))
+      return
+    } catch {
+      // try next path
+    }
+  }
+  // Memory-only fallback: fine for Vercel demo instances
+}
+
+function ensureDb(): Database {
+  if (globalStore.__sangamDb) return globalStore.__sangamDb
+
+  const fromDisk = tryReadFile()
+  const db = fromDisk ?? seedDb()
+  if (!fromDisk) tryWriteFile(db)
+  globalStore.__sangamDb = db
+  return db
 }
 
 export function readDb(): Database {
@@ -441,22 +477,22 @@ export function readDb(): Database {
 }
 
 export function writeDb(db: Database) {
-  if (!existsSync(DATA_DIR)) mkdirSync(DATA_DIR, { recursive: true })
-  writeFileSync(DB_PATH, JSON.stringify(db, null, 2))
+  globalStore.__sangamDb = db
+  tryWriteFile(db)
 }
 
 export function mutateDb<T>(fn: (db: Database) => T): T {
-  if (mutating) {
+  if (globalStore.__sangamMutating) {
     throw new Error("Data store is busy. Retry the request.")
   }
-  mutating = true
+  globalStore.__sangamMutating = true
   try {
     const db = readDb()
     const result = fn(db)
     writeDb(db)
     return result
   } finally {
-    mutating = false
+    globalStore.__sangamMutating = false
   }
 }
 

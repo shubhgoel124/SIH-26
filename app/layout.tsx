@@ -25,10 +25,12 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${dmSans.variable} font-sans antialiased`}>
-        <Suspense fallback={<div className="p-8 text-slate-600">Loading...</div>}>
-          <SessionProvider>{children}</SessionProvider>
+        <SessionProvider>
+          <Suspense fallback={<div className="p-8 text-slate-600">Loading...</div>}>
+            {children}
+          </Suspense>
           <Toaster />
-        </Suspense>
+        </SessionProvider>
       </body>
     </html>
   )

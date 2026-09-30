@@ -1,9 +1,9 @@
 import NextAuth from "next-auth"
 import Credentials from "next-auth/providers/credentials"
 import type { JWT } from "next-auth/jwt"
+import { authConfig } from "@/auth.config"
 import { findUserByEmail, type Role } from "@/lib/store"
 
-// Keep JWT import so module augmentation resolves under NextAuth v5.
 void 0 as unknown as JWT
 
 declare module "next-auth" {
@@ -42,6 +42,8 @@ const sessionRoleMap: Record<Role, "trainee" | "trainer" | "admin"> = {
 }
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
+  ...authConfig,
+  secret: process.env.AUTH_SECRET,
   providers: [
     Credentials({
       credentials: {
@@ -73,36 +75,4 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       },
     }),
   ],
-  callbacks: {
-    session({ session, token }) {
-      return {
-        ...session,
-        user: {
-          id: token.id as string,
-          email: session.user?.email || "",
-          name: session.user?.name || "",
-          role: token.role as "trainee" | "trainer" | "admin",
-        },
-      }
-    },
-    jwt({ token, user }) {
-      if (user) {
-        token.id = user.id
-        token.role = user.role
-      }
-      return token
-    },
-  },
-  session: {
-    strategy: "jwt",
-    maxAge: 20 * 60,
-  },
-  pages: {
-    signIn: "/sign-in",
-    error: "/sign-in",
-  },
-  secret: process.env.AUTH_SECRET,
-  jwt: {
-    maxAge: 20 * 60,
-  },
 })

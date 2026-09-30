@@ -1,6 +1,7 @@
 import { v2 as cloudinary } from "cloudinary"
-import { mkdirSync, writeFileSync, existsSync } from "fs"
+import { mkdirSync, writeFileSync, existsSync, readFileSync } from "fs"
 import path from "path"
+import os from "os"
 import { NextRequest, NextResponse } from "next/server"
 import { cuid } from "@/lib/store"
 
@@ -24,6 +25,22 @@ function sanitizeFilename(name: string): string {
   return cleaned.slice(0, 200) || "upload"
 }
 
+function uploadsDir() {
+  const dirs = [
+    path.join(process.cwd(), "public", "uploads"),
+    path.join(os.tmpdir(), "sangam-uploads"),
+  ]
+  for (const dir of dirs) {
+    try {
+      if (!existsSync(dir)) mkdirSync(dir, { recursive: true })
+      return dir
+    } catch {
+      // try next
+    }
+  }
+  return path.join(os.tmpdir(), "sangam-uploads")
+}
+
 async function uploadToCloudinary(
   file: File,
   folder: string
@@ -45,20 +62,35 @@ async function uploadToCloudinary(
 }
 
 async function uploadToLocal(file: File): Promise<{ url: string; publicId: string }> {
-  const uploadsDir = path.join(process.cwd(), "public", "uploads")
-  if (!existsSync(uploadsDir)) {
-    mkdirSync(uploadsDir, { recursive: true })
-  }
+  const dir = uploadsDir()
+  if (!existsSync(dir)) mkdirSync(dir, { recursive: true })
 
   const ext = path.extname(file.name)
   const safeBase = sanitizeFilename(path.basename(file.name, ext))
   const filename = `${safeBase}-${cuid()}${ext}`
-  const filePath = path.join(uploadsDir, filename)
+  const filePath = path.join(dir, filename)
 
   const bytes = await file.arrayBuffer()
   writeFileSync(filePath, Buffer.from(bytes))
 
-  return { url: `/uploads/${filename}`, publicId: filename }
+  // Served via /api/files so it works on Vercel (/tmp) and local (/public/uploads)
+  return { url: `/api/files/${filename}`, publicId: filename }
+}
+
+export function readUploadedFile(filename: string): Buffer | null {
+  const safe = path.basename(filename)
+  const candidates = [
+    path.join(process.cwd(), "public", "uploads", safe),
+    path.join(os.tmpdir(), "sangam-uploads", safe),
+  ]
+  for (const filePath of candidates) {
+    try {
+      if (existsSync(filePath)) return readFileSync(filePath)
+    } catch {
+      // continue
+    }
+  }
+  return null
 }
 
 export const POST = async (req: NextRequest) => {
@@ -82,67 +114,7 @@ export const POST = async (req: NextRequest) => {
     return NextResponse.json(result)
   } catch (err: unknown) {
     console.error("Upload error:", err)
-    const error = err as { error?: { name?: string; message?: string }; message?: string }
-
-    if (error?.error?.name === "TimeoutError" || error?.message?.includes("timeout")) {
-      return NextResponse.json(
-        { error: "Upload timed out. Please try again with a smaller file or check your connection." },
-        { status: 504 }
-      )
-    }
-
-    if (error?.error?.message) {
-      return NextResponse.json({ error: error.error.message }, { status: 500 })
-    }
-
-    return NextResponse.json({ error: "Upload failed" }, { status: 500 })
-  }
-}
-
-export const deleteFromCloudinary = async (
-  publicIds: string | string[],
-  resourceType: "image" | "raw" | "video" = "raw"
-): Promise<{
-  success: boolean
-  deleted?: string[]
-  error?: string
-}> => {
-  if (!useCloudinary) {
-    return { success: true, deleted: [] }
-  }
-
-  try {
-    const ids = typeof publicIds === "string" ? [publicIds] : publicIds
-
-    if (ids.length === 0) {
-      return { success: true, deleted: [] }
-    }
-
-    const results = await Promise.all(
-      ids.map((id) => cloudinary.uploader.destroy(id, { resource_type: resourceType }))
-    )
-
-    const deleted = ids.filter((_, index) => results[index].result === "ok")
-
-    return { success: true, deleted }
-  } catch (err: unknown) {
-    console.error("Cloudinary delete error:", err)
-    const message = err instanceof Error ? err.message : "Unknown error during delete"
-    return { success: false, error: message }
-  }
-}
-
-export const getPublicIdFromUrl = (url: string): string | null => {
-  try {
-    const regex = /\/(?:image|raw|video)\/upload\/(?:v\d+\/)?(.+)$/
-    const match = url.match(regex)
-    if (match) {
-      const pathWithExt = match[1]
-      const lastDotIndex = pathWithExt.lastIndexOf(".")
-      return lastDotIndex > 0 ? pathWithExt.substring(0, lastDotIndex) : pathWithExt
-    }
-    return null
-  } catch {
-    return null
+    const message = err instanceof Error ? err.message : "Upload failed"
+    return NextResponse.json({ error: message }, { status: 500 })
   }
 }
